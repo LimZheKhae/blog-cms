@@ -178,9 +178,9 @@ export function hasAnyPermission(userRole: UserRole | undefined, permissions: Pe
  */
 export function hasAllPermissions(userRole: UserRole | undefined, permissions: Permission[]): boolean {
   if (!userRole) {
-    return false
-  }
-  
+  return false
+}
+
   return permissions.every(permission => hasPermission(userRole, permission))
 }
 
@@ -200,7 +200,7 @@ export function hasAllPermissions(userRole: UserRole | undefined, permissions: P
  */
 export function hasMinimumRole(userRole: UserRole | undefined, minimumRole: UserRole): boolean {
   if (!userRole) {
-    return false
+  return false
   }
   
   return ROLE_HIERARCHY[userRole] >= ROLE_HIERARCHY[minimumRole]

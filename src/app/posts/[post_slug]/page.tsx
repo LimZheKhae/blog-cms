@@ -5,7 +5,7 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import { useSession } from "next-auth/react"
 import { notFound } from "next/navigation"
 import Link from "next/link"
@@ -14,6 +14,29 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Textarea } from "@/components/ui/textarea"
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { 
   Calendar, 
   Clock, 
@@ -31,12 +54,14 @@ import {
   Send,
   TrendingUp,
   BookOpen,
+  Flag,
+  MoreHorizontal,
+  Trash2,
+  EyeOff,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import rehypeHighlight from 'rehype-highlight'
-import 'highlight.js/styles/github.css'
+import { toast } from 'react-toastify'
+// Removed markdown imports since we're using HTML content from TipTap
 
 interface Post {
   id: string
@@ -63,19 +88,23 @@ interface Post {
 interface Comment {
   id: string
   content: string
-  author_name: string
+  author_name?: string
   author_avatar?: string
   created_at: string
   likes: number
+  report_count?: number
+  is_reported?: boolean
+  is_hidden?: boolean
 }
 
 interface Props {
-  params: {
-    post_id: string
-  }
+  params: Promise<{
+    post_slug: string
+  }>
 }
 
 export default function PostPage({ params }: Props) {
+  const resolvedParams = use(params)
   const { data: session } = useSession()
   const [post, setPost] = useState<Post | null>(null)
   const [comments, setComments] = useState<Comment[]>([])
@@ -85,10 +114,14 @@ export default function PostPage({ params }: Props) {
   const [showShareMenu, setShowShareMenu] = useState(false)
   const [newComment, setNewComment] = useState("")
   const [readingProgress, setReadingProgress] = useState(0)
+  const [showReportDialog, setShowReportDialog] = useState(false)
+  const [reportingCommentId, setReportingCommentId] = useState<string | null>(null)
+  const [reportReason, setReportReason] = useState("")
+  const [reportDescription, setReportDescription] = useState("")
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false)
 
   useEffect(() => {
-    fetchPost()
-    fetchComments()
+    fetchPostAndComments()
     
     const handleScroll = () => {
       const scrolled = window.scrollY
@@ -99,153 +132,35 @@ export default function PostPage({ params }: Props) {
 
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
-  }, [params.post_id])
+  }, [resolvedParams.post_slug])
 
-  const fetchPost = async () => {
+  const fetchPostAndComments = async () => {
     try {
-      const mockPost: Post = {
-        id: params.post_id,
-        title: "The Future of Web Development: Trends to Watch in 2024",
-        content: `# Introduction
-
-The web development landscape is constantly evolving, and 2024 promises to be a year of significant transformation. From artificial intelligence integration to new architectural patterns, developers are witnessing unprecedented changes that will shape how we build and interact with web applications.
-
-## The Rise of AI-Powered Development
-
-Artificial Intelligence is no longer just a buzzword—it's becoming an integral part of the development workflow. **GitHub Copilot**, **ChatGPT**, and other AI tools are revolutionizing how developers write code, debug issues, and even architect solutions.
-
-### Key AI Integration Points:
-
-- **Code Generation**: AI can generate boilerplate code, saving hours of development time
-- **Bug Detection**: Advanced static analysis powered by machine learning  
-- **Performance Optimization**: AI-driven suggestions for code improvements
-- **Documentation**: Automated generation of comprehensive documentation
-
-## Modern JavaScript Frameworks
-
-The JavaScript ecosystem continues to mature with frameworks focusing on performance and developer experience.
-
-### Next.js 14 and the App Router
-
-The new App Router in Next.js represents a paradigm shift toward server components and streaming, offering:
-
-\`\`\`javascript
-// Server Component Example
-async function ProductList() {
-  const products = await fetch('/api/products')
-  return (
-    <div className="grid grid-cols-3 gap-4">
-      {products.map(product => (
-        <ProductCard key={product.id} {...product} />
-      ))}
-    </div>
-  )
-}
-\`\`\`
-
-### TypeScript Dominance
-
-TypeScript adoption has reached new heights, with major frameworks and libraries providing first-class TypeScript support. The benefits are clear:
-
-- **Type Safety**: Catch errors at compile time
-- **Better IDE Support**: Enhanced autocomplete and refactoring
-- **Improved Code Quality**: Self-documenting code through types
-
-## The Component-First Web
-
-Web Components and modern component libraries are changing how we think about reusable UI:
-
-### Design Systems at Scale
-
-Companies are investing heavily in design systems that provide:
-
-1. **Consistent UI/UX** across products
-2. **Faster Development** cycles  
-3. **Better Accessibility** by default
-4. **Brand Coherence** across teams
-
-## WebAssembly (WASM) Revolution
-
-WebAssembly is opening new possibilities for web applications:
-
-- **Performance**: Near-native speed for compute-intensive tasks
-- **Language Diversity**: Run code written in Rust, Go, C++ in the browser
-- **New Use Cases**: CAD tools, image/video processing, gaming
-
-### WASM Example
-
-\`\`\`rust
-#[wasm_bindgen]
-pub fn fibonacci(n: i32) -> i32 {
-    match n {
-        0 => 0,
-        1 => 1,
-        _ => fibonacci(n - 1) + fibonacci(n - 2),
-    }
-}
-\`\`\`
-
-## Conclusion
-
-The future of web development is bright, with AI augmentation, improved frameworks, and new technologies like **WebAssembly** paving the way for more powerful and efficient web applications. 
-
-> Developers who embrace these trends will be well-positioned to build the next generation of web experiences.
-
-As we move forward, the key is to balance innovation with proven practices, ensuring that we're not just chasing the latest trends but building sustainable, maintainable, and performant applications.`,
-        excerpt: "Explore the cutting-edge trends that will shape web development in 2024, from AI integration to new frameworks.",
-        status: "published",
-        created_at: "2024-01-15T10:30:00Z",
-        updated_at: "2024-01-15T10:30:00Z",
-        author_id: "1",
-        author_name: "John Smith",
-        author_bio: "Senior Full-Stack Developer with 8+ years of experience building scalable web applications.",
-        author_avatar: "/placeholder-user.jpg",
-        author_twitter: "@johnsmith_dev",
-        views_count: 1234,
-        comments_count: 23,
-        likes_count: 89,
-        reading_time: 8,
-        tags: ["JavaScript", "React", "AI", "WebDev", "2024"],
-        featured_image: "/placeholder.jpg",
-        category: "Technology"
-      }
-
-      if (mockPost.id !== params.post_id) {
-        notFound()
-      }
-
-      setPost(mockPost)
-    } catch (error) {
-      console.error("Error fetching post:", error)
-      notFound()
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const fetchComments = async () => {
-    try {
-      const mockComments: Comment[] = [
-        {
-          id: "1",
-          content: "Great article! The section on AI-powered development really resonates with my recent experience.",
-          author_name: "Sarah Johnson",
-          author_avatar: "/placeholder-user.jpg",
-          created_at: "2024-01-16T09:15:00Z",
-          likes: 12
-        },
-        {
-          id: "2",
-          content: "The WebAssembly section was particularly interesting. Performance gains are incredible.",
-          author_name: "Mike Chen",
-          author_avatar: "/placeholder-user.jpg",
-          created_at: "2024-01-16T14:22:00Z",
-          likes: 8
+      const response = await fetch(`/api/posts/${resolvedParams.post_slug}`);
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          notFound();
         }
-      ]
-      setComments(mockComments)
+        throw new Error('Failed to fetch post');
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setPost(data.post);
+        if (data.comments) {
+          setComments(data.comments);
+        }
+      } else {
+        console.error('API returned error:', data.error);
+        notFound();
+      }
     } catch (error) {
-      console.error("Error fetching comments:", error)
+      console.error("Error fetching post:", error);
+      notFound();
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -273,7 +188,7 @@ As we move forward, the key is to balance innovation with proven practices, ensu
         break
       case "copy":
         navigator.clipboard.writeText(url)
-        alert("Link copied to clipboard!")
+        toast.success("📋 Link copied to clipboard!")
         break
     }
     setShowShareMenu(false)
@@ -281,19 +196,131 @@ As we move forward, the key is to balance innovation with proven practices, ensu
 
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newComment.trim()) return
+    if (!newComment.trim() || !post) return
 
-    const newCommentObj: Comment = {
-      id: Date.now().toString(),
-      content: newComment,
-      author_name: session?.user?.name || "Anonymous",
-      author_avatar: session?.user?.image || undefined,
-      created_at: new Date().toISOString(),
-      likes: 0
+    setIsSubmittingComment(true)
+    
+    try {
+      const response = await fetch('/api/comments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: newComment,
+          post_id: parseInt(post.id)
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        // Add the new comment to the list
+        setComments([data.comment, ...comments])
+        setNewComment("")
+      } else {
+        console.error('Failed to post comment:', data.error)
+        toast.error(`❌ Failed to post comment: ${data.error || "Please try again."}`)
+      }
+    } catch (error) {
+      console.error('Error posting comment:', error)
+      toast.error("❌ Error posting comment. Something went wrong. Please try again.")
+    } finally {
+      setIsSubmittingComment(false)
     }
+  }
 
-    setComments([newCommentObj, ...comments])
-    setNewComment("")
+  const handleReportComment = (commentId: string) => {
+    setReportingCommentId(commentId)
+    setShowReportDialog(true)
+  }
+
+  const handleSubmitReport = async () => {
+    if (!reportingCommentId || !reportReason) return
+
+    try {
+      const response = await fetch(`/api/comments/${reportingCommentId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'report',
+          reason: reportReason,
+          description: reportDescription
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        toast.success("✅ Comment reported. Thank you for helping keep our community safe.")
+        setShowReportDialog(false)
+        setReportingCommentId(null)
+        setReportReason("")
+        setReportDescription("")
+      } else {
+        toast.error(`❌ Failed to report comment: ${data.error || "Please try again."}`)
+      }
+    } catch (error) {
+      console.error('Error reporting comment:', error)
+      toast.error("❌ Error reporting comment. Something went wrong. Please try again.")
+    }
+  }
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!confirm('Are you sure you want to delete this comment?')) return
+
+    try {
+      const response = await fetch(`/api/comments/${commentId}`, {
+        method: 'DELETE'
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        // Remove the comment from the list
+        setComments(comments.filter(c => c.id !== commentId))
+        toast.success("🗑️ Comment deleted permanently.")
+      } else {
+        toast.error(`❌ Failed to delete comment: ${data.error || "Please try again."}`)
+      }
+    } catch (error) {
+      console.error('Error deleting comment:', error)
+      toast.error("❌ Error deleting comment. Something went wrong. Please try again.")
+    }
+  }
+
+  const handleHideComment = async (commentId: string, reason: string) => {
+    try {
+      const response = await fetch(`/api/comments/${commentId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'hide',
+          reason: reason
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        // Update the comment in the list
+        setComments(comments.map(c => 
+          c.id === commentId 
+            ? { ...c, is_hidden: true }
+            : c
+        ))
+        toast.success("👁️ Comment hidden from public view.")
+      } else {
+        toast.error(`❌ Failed to hide comment: ${data.error || "Please try again."}`)
+      }
+    } catch (error) {
+      console.error('Error hiding comment:', error)
+      toast.error("❌ Error hiding comment. Something went wrong. Please try again.")
+    }
   }
 
   const formatDate = (dateString: string) => {
@@ -437,7 +464,7 @@ As we move forward, the key is to balance innovation with proven practices, ensu
                 <div className="flex items-center space-x-4">
                   <Avatar className="h-16 w-16">
                     <AvatarImage src={post.author_avatar} />
-                    <AvatarFallback>{post.author_name.charAt(0)}</AvatarFallback>
+                    <AvatarFallback>{post.author_name?.charAt(0) || '?'}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
                     <h3 className="text-lg font-semibold">{post.author_name}</h3>
@@ -457,76 +484,10 @@ As we move forward, the key is to balance innovation with proven practices, ensu
 
             {/* Article Body */}
             <div className="bg-white/60 backdrop-blur-sm rounded-lg p-8 border border-gray-200">
-              <div className="prose prose-lg max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-code:text-purple-600 prose-code:bg-purple-50 prose-code:px-2 prose-code:py-1 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-gray-100 prose-blockquote:border-l-blue-500 prose-blockquote:bg-blue-50 prose-blockquote:italic">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  rehypePlugins={[rehypeHighlight]}
-                  components={{
-                    code: ({ children, className, ...props }: any) => {
-                      const match = /language-(\w+)/.exec(className || '')
-                      const isInline = !match
-                      
-                      if (isInline) {
-                        return (
-                          <code className="bg-purple-50 text-purple-600 px-2 py-1 rounded text-sm" {...props}>
-                            {children}
-                          </code>
-                        )
-                      }
-                      
-                      return (
-                        <pre className="bg-gray-900 text-gray-100 rounded-lg p-4 overflow-x-auto my-4">
-                          <code className={className} {...props}>
-                            {children}
-                          </code>
-                        </pre>
-                      )
-                    },
-                    blockquote: ({ children, ...props }: any) => (
-                      <blockquote className="border-l-4 border-blue-500 bg-blue-50 pl-4 py-2 italic text-blue-800 my-4" {...props}>
-                        {children}
-                      </blockquote>
-                    ),
-                    h1: ({ children, ...props }: any) => (
-                      <h1 className="text-4xl font-bold text-gray-900 mb-6 pb-3 border-b border-gray-200" {...props}>
-                        {children}
-                      </h1>
-                    ),
-                    h2: ({ children, ...props }: any) => (
-                      <h2 className="text-3xl font-semibold text-gray-900 mb-5 mt-8" {...props}>
-                        {children}
-                      </h2>
-                    ),
-                    h3: ({ children, ...props }: any) => (
-                      <h3 className="text-2xl font-semibold text-gray-900 mb-4 mt-6" {...props}>
-                        {children}
-                      </h3>
-                    ),
-                    ul: ({ children, ...props }: any) => (
-                      <ul className="list-disc list-inside space-y-2 mb-4 ml-4" {...props}>
-                        {children}
-                      </ul>
-                    ),
-                    ol: ({ children, ...props }: any) => (
-                      <ol className="list-decimal list-inside space-y-2 mb-4 ml-4" {...props}>
-                        {children}
-                      </ol>
-                    ),
-                    p: ({ children, ...props }: any) => (
-                      <p className="text-gray-700 leading-relaxed mb-4" {...props}>
-                        {children}
-                      </p>
-                    ),
-                    strong: ({ children, ...props }: any) => (
-                      <strong className="font-semibold text-gray-900" {...props}>
-                        {children}
-                      </strong>
-                    ),
-                  }}
-                >
-                  {post.content}
-                </ReactMarkdown>
-              </div>
+              <div 
+                className="prose prose-lg max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-code:text-purple-600 prose-code:bg-purple-50 prose-code:px-2 prose-code:py-1 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-gray-100 prose-blockquote:border-l-blue-500 prose-blockquote:bg-blue-50 prose-blockquote:italic prose-img:rounded-lg prose-img:shadow-md"
+                dangerouslySetInnerHTML={{ __html: post.content }}
+              />
             </div>
 
             {/* Tags */}
@@ -581,7 +542,7 @@ As we move forward, the key is to balance innovation with proven practices, ensu
                       <div className="flex items-start space-x-4">
                         <Avatar className="h-10 w-10">
                           <AvatarImage src={session.user?.image || undefined} />
-                          <AvatarFallback>{session.user?.name?.charAt(0)}</AvatarFallback>
+                          <AvatarFallback>{session.user?.name?.charAt(0) || '?'}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
                           <Textarea
@@ -591,9 +552,9 @@ As we move forward, the key is to balance innovation with proven practices, ensu
                             className="min-h-[100px]"
                           />
                           <div className="flex justify-end mt-3">
-                            <Button type="submit" disabled={!newComment.trim()}>
+                            <Button type="submit" disabled={!newComment.trim() || isSubmittingComment}>
                               <Send className="h-4 w-4 mr-2" />
-                              Post Comment
+                              {isSubmittingComment ? "Posting..." : "Post Comment"}
                             </Button>
                           </div>
                         </div>
@@ -605,20 +566,61 @@ As we move forward, the key is to balance innovation with proven practices, ensu
 
               {/* Comments List */}
               <div className="space-y-6">
-                {comments.map((comment) => (
+                {comments.filter(comment => !comment.is_hidden).map((comment) => (
                   <Card key={comment.id} className="bg-white/60 backdrop-blur-sm border-gray-200">
                     <CardContent className="p-6">
                       <div className="flex items-start space-x-4">
                         <Avatar className="h-10 w-10">
                           <AvatarImage src={comment.author_avatar} />
-                          <AvatarFallback>{comment.author_name.charAt(0)}</AvatarFallback>
+                          <AvatarFallback>{comment.author_name?.charAt(0) || '?'}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
-                          <div className="flex items-center space-x-2 mb-2">
-                            <h4 className="font-semibold">{comment.author_name}</h4>
-                            <span className="text-sm text-gray-500">
-                              {formatDate(comment.created_at)}
-                            </span>
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center space-x-2">
+                              <h4 className="font-semibold">{comment.author_name || 'Anonymous'}</h4>
+                              <span className="text-sm text-gray-500">
+                                {formatDate(comment.created_at)}
+                              </span>
+                              {comment.is_reported && (
+                                <Badge variant="destructive" className="text-xs">
+                                  Reported ({comment.report_count})
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              {session && (
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm">
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => handleReportComment(comment.id)}>
+                                      <Flag className="h-4 w-4 mr-2" />
+                                      Report
+                                    </DropdownMenuItem>
+                                    {(session.user.role === 'editor' || session.user.role === 'admin') && (
+                                      <>
+                                        <DropdownMenuItem 
+                                          onClick={() => handleHideComment(comment.id, 'Hidden by moderator')}
+                                        >
+                                          <EyeOff className="h-4 w-4 mr-2" />
+                                          Hide Comment
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem 
+                                          onClick={() => handleDeleteComment(comment.id)}
+                                          className="text-red-600"
+                                        >
+                                          <Trash2 className="h-4 w-4 mr-2" />
+                                          Delete
+                                        </DropdownMenuItem>
+                                      </>
+                                    )}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              )}
+                            </div>
                           </div>
                           <p className="text-gray-700 mb-3">{comment.content}</p>
                           <Button variant="ghost" size="sm" className="text-gray-500 hover:text-red-500">
@@ -699,6 +701,54 @@ As we move forward, the key is to balance innovation with proven practices, ensu
           </div>
         </div>
       </div>
+
+      {/* Report Dialog */}
+      <Dialog open={showReportDialog} onOpenChange={setShowReportDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Report Comment</DialogTitle>
+            <DialogDescription>
+              Help us keep our community safe by reporting inappropriate content.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="reason">Reason for reporting</Label>
+              <Select value={reportReason} onValueChange={setReportReason}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a reason" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="spam">Spam</SelectItem>
+                  <SelectItem value="harassment">Harassment</SelectItem>
+                  <SelectItem value="inappropriate">Inappropriate content</SelectItem>
+                  <SelectItem value="offensive">Offensive language</SelectItem>
+                  <SelectItem value="misinformation">Misinformation</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="description">Additional details (optional)</Label>
+              <Textarea
+                id="description"
+                placeholder="Provide more context about why you're reporting this comment..."
+                value={reportDescription}
+                onChange={(e) => setReportDescription(e.target.value)}
+                className="min-h-[80px]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowReportDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSubmitReport} disabled={!reportReason}>
+              Submit Report
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 } 

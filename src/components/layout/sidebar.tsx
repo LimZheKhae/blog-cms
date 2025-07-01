@@ -5,7 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { hasPermission, PERMISSIONS } from "@/lib/permissions"
-import { FileText, MessageSquare, PlusCircle, Users, BarChart3 } from "lucide-react"
+import { FileText, Shield, PlusCircle, Users, BarChart3 } from "lucide-react"
 
 const navigation = [
   {
@@ -27,14 +27,14 @@ const navigation = [
     permission: PERMISSIONS.CREATE_POST,
   },
   {
-    name: "Comments",
-    href: "/comments",
-    icon: MessageSquare,
+    name: "Comment Moderation",
+    href: "/comment-moderation",
+    icon: Shield,
     permission: PERMISSIONS.MODERATE_COMMENTS,
   },
   {
-    name: "Users",
-    href: "/admin/users",
+    name: "User Management",
+    href: "/user-management",
     icon: Users,
     permission: PERMISSIONS.MANAGE_USERS,
   },

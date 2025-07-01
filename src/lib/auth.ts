@@ -4,8 +4,9 @@
  * It handles user authentication via credentials (email-based for demo)
  */
 
-import NextAuth, { type DefaultSession } from "next-auth"
+import NextAuth, { type DefaultSession, type AuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
+import GoogleProvider from "next-auth/providers/google"
 import MicrosoftProvider from "next-auth/providers/azure-ad"
 import { neon } from "@neondatabase/serverless"
 import { z } from "zod"
@@ -45,15 +46,40 @@ async function getUserByEmail(email: string) {
 }
 
 /**
+ * Database function to create a new user
+ * Used for OAuth providers to automatically create user accounts
+ */
+async function createUser(email: string, name: string, avatarUrl?: string) {
+  try {
+    const result = await sql`
+      INSERT INTO users (email, name, role, avatar_url)
+      VALUES (${email}, ${name}, 'viewer', ${avatarUrl || null})
+      RETURNING id, email, name, role, avatar_url, created_at
+    `
+    
+    return result.length > 0 ? result[0] : null
+  } catch (error) {
+    console.error("Database error when creating user:", error)
+    return null
+  }
+}
+
+/**
  * NextAuth v4 configuration object
  * Defines providers, callbacks, pages, and session strategy
  */
-export default NextAuth({
+export const authOptions: AuthOptions = {
   /**
    * Authentication providers configuration
-   * Uses both Credentials and Microsoft OAuth providers
+   * Uses Credentials, Google OAuth, and Microsoft OAuth providers
    */
   providers: [
+    // Google OAuth Provider
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    }),
+    
     // Microsoft/Outlook OAuth Provider
     MicrosoftProvider({
       clientId: process.env.AZURE_AD_CLIENT_ID!,
@@ -132,11 +158,37 @@ export default NextAuth({
   callbacks: {
     /**
      * SignIn callback - controls whether a user is allowed to sign in
-     * For OAuth providers, check if email exists in database
+     * For OAuth providers, automatically create user if not exists
      */
-    async signIn({ user, account, profile }) {
+    async signIn({ user, account, profile }: any) {
       // Allow credentials provider (already checked in authorize function)
       if (account?.provider === "credentials") {
+        return true
+      }
+      
+      // Handle Google OAuth
+      if (account?.provider === "google" && user.email && user.name) {
+        console.log("SignIn callback - Google OAuth user:", user.email)
+        console.log("SignIn callback - User object:", user)
+        let dbUser = await getUserByEmail(user.email)
+        console.log("SignIn callback - Database user found:", dbUser)
+        
+        if (!dbUser) {
+          // User doesn't exist, create new user with viewer role
+          console.log("Creating new Google user:", user.email)
+          dbUser = await createUser(user.email, user.name, user.image || undefined)
+          
+          if (!dbUser) {
+            console.error("Failed to create new Google user:", user.email)
+            return false
+          }
+          console.log("SignIn callback - Created new user:", dbUser)
+        }
+        
+        // Update user object with database info
+        user.id = dbUser.id.toString()
+        user.role = dbUser.role
+        console.log("SignIn callback - Updated user object:", { id: user.id, role: user.role, email: user.email })
         return true
       }
       
@@ -165,12 +217,37 @@ export default NextAuth({
      * @param user - User object (only available on signin)
      * @returns Modified token
      */
-    async jwt({ token, user }) {
+    async jwt({ token, user }: any) {
+      console.log('JWT callback - user:', user)
+      console.log('JWT callback - token before:', token)
+      
       // If user is available (on signin), add custom fields to token
       if (user) {
         token.id = user.id
         token.role = user.role
+        
+        // If role is missing from user object, fetch from database
+        if (!token.role && token.email) {
+          console.log('Role missing from user, fetching from database for:', token.email)
+          const dbUser = await getUserByEmail(token.email as string)
+          if (dbUser) {
+            token.role = dbUser.role
+            token.id = dbUser.id.toString()
+          }
+        }
       }
+      
+      // If this is a subsequent JWT call and role is missing, fetch it
+      if (!token.role && token.email) {
+        console.log('Role missing from token, fetching from database for:', token.email)
+        const dbUser = await getUserByEmail(token.email as string)
+        if (dbUser) {
+          token.role = dbUser.role
+          token.id = dbUser.id.toString()
+        }
+      }
+      
+      console.log('JWT callback - token after:', token)
       return token
     },
 
@@ -181,12 +258,17 @@ export default NextAuth({
      * @param token - The JWT token
      * @returns Modified session
      */
-    async session({ session, token }) {
+    async session({ session, token }: any) {
+      console.log('Session callback - token:', token)
+      console.log('Session callback - session before:', session)
+      
       // Add custom fields from token to session
       if (token && session.user) {
         session.user.id = token.id as string
         session.user.role = token.role as "admin" | "editor" | "author" | "viewer"
       }
+      
+      console.log('Session callback - session after:', session)
       return session
     },
   },
@@ -204,7 +286,7 @@ export default NextAuth({
    * Uses JWT strategy for stateless authentication
    */
   session: {
-    strategy: "jwt",
+    strategy: "jwt" as const,
     // Session expires after 7 days of inactivity
     maxAge: 7 * 24 * 60 * 60, // 7 days in seconds
   },
@@ -219,4 +301,6 @@ export default NextAuth({
    * Should be a random string in production
    */
   secret: process.env.NEXTAUTH_SECRET,
-})
+}
+
+export default NextAuth(authOptions)

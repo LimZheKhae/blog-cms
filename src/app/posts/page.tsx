@@ -34,6 +34,7 @@ import { cn } from "@/lib/utils"
 interface Post {
   id: string
   title: string
+  slug: string
   content: string
   excerpt: string
   status: "draft" | "published"
@@ -58,65 +59,48 @@ export default function PostsPage() {
 
   const fetchPosts = async () => {
     try {
-      // Mock data for now - replace with actual API call
-      const mockPosts: Post[] = [
-        {
-          id: "1",
-          title: "The Future of Web Development: Trends to Watch in 2024",
-          content: "Lorem ipsum dolor sit amet...",
-          excerpt: "Explore the cutting-edge trends that will shape web development in 2024, from AI integration to new frameworks.",
-          status: "published",
-          created_at: "2024-01-15T10:30:00Z",
-          updated_at: "2024-01-15T10:30:00Z",
-          author_id: "1",
-          author_name: "John Smith",
-          author_avatar: "/placeholder-user.jpg",
-          views_count: 1234,
-          comments_count: 23,
-          reading_time: 8
-        },
-        {
-          id: "2",
-          title: "Building Scalable React Applications",
-          content: "Lorem ipsum dolor sit amet...",
-          excerpt: "Learn the best practices and architectural patterns for building large-scale React applications that grow with your team.",
-          status: "published",
-          created_at: "2024-01-12T14:20:00Z",
-          updated_at: "2024-01-12T14:20:00Z",
-          author_id: "2",
-          author_name: "Sarah Johnson",
-          author_avatar: "/placeholder-user.jpg",
-          views_count: 856,
-          comments_count: 15,
-          reading_time: 12
-        },
-        {
-          id: "3",
-          title: "Design Systems: Creating Consistency at Scale",
-          content: "Lorem ipsum dolor sit amet...",
-          excerpt: "How to build and maintain design systems that ensure consistency across your entire product ecosystem.",
-          status: "draft",
-          created_at: "2024-01-10T09:15:00Z",
-          updated_at: "2024-01-14T16:45:00Z",
-          author_id: "1",
-          author_name: "John Smith",
-          author_avatar: "/placeholder-user.jpg",
-          views_count: 0,
-          comments_count: 0,
-          reading_time: 6
+      const params = new URLSearchParams({
+        page: '1',
+        limit: '20',
+        status: statusFilter === 'all' ? '' : statusFilter,
+        search: searchTerm,
+        sortBy: sortBy
+      });
+
+      // Remove empty parameters
+      Object.keys(Object.fromEntries(params)).forEach(key => {
+        if (!params.get(key)) {
+          params.delete(key);
         }
-      ]
-      setPosts(mockPosts)
+      });
+
+      const response = await fetch(`/api/posts?${params.toString()}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch posts');
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setPosts(data.posts);
+      } else {
+        console.error('API returned error:', data.error);
+        // Fallback to empty array
+        setPosts([]);
+      }
     } catch (error) {
-      console.error("Error fetching posts:", error)
+      console.error("Error fetching posts:", error);
+      // Fallback to empty array on error
+      setPosts([]);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   useEffect(() => {
     fetchPosts()
-  }, [])
+  }, [searchTerm, statusFilter, sortBy])
 
   // Handle authentication states
   if (status === "loading") {
@@ -329,7 +313,7 @@ export default function PostsPage() {
                         <div className="flex items-center space-x-2">
                           <Avatar className="h-8 w-8">
                             <AvatarImage src={post.author_avatar} />
-                            <AvatarFallback>{post.author_name.charAt(0)}</AvatarFallback>
+                            <AvatarFallback>{post.author_name?.charAt(0) || 'Anonymous'}</AvatarFallback>
                           </Avatar>
                           <div>
                             <p className="text-sm font-medium">{post.author_name}</p>
@@ -353,7 +337,7 @@ export default function PostsPage() {
                         </div>
                       </div>
 
-                      <Link href={`/posts/${post.id}`}>
+                      <Link href={`/posts/${post.slug}`}>
                         <Button className="w-full group/btn">
                           Read Article
                           <ArrowRight className="h-4 w-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
@@ -383,7 +367,7 @@ export default function PostsPage() {
                         <div className="flex items-center space-x-2">
                           <Avatar className="h-6 w-6">
                             <AvatarImage src={post.author_avatar} />
-                            <AvatarFallback>{post.author_name.charAt(0)}</AvatarFallback>
+                            <AvatarFallback>{post.author_name?.charAt(0) || 'Anonymous'}</AvatarFallback>
                           </Avatar>
                           <span className="text-sm text-gray-600">{post.author_name}</span>
                           <span className="text-sm text-gray-400">•</span>
@@ -402,7 +386,7 @@ export default function PostsPage() {
                       </div>
                     </div>
                     <div className="w-48 p-6 flex items-center">
-                      <Link href={`/posts/${post.id}`} className="w-full">
+                      <Link href={`/posts/${post.slug}`} className="w-full">
                         <Button className="w-full group/btn">
                           Read
                           <ArrowRight className="h-4 w-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />

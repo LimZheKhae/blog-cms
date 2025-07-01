@@ -33,8 +33,10 @@ import {
   Users,
   Flag,
   ExternalLink,
-  RefreshCw
+  RefreshCw,
+  Calendar
 } from "lucide-react"
+import { LoadingScreen } from '@/components/ui/loading-screen'
 
 interface ModerationComment {
   id: string
@@ -263,17 +265,12 @@ export default function CommentModerationPage() {
   }
 
   if (status === 'loading' || loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading moderation dashboard...</p>
-        </div>
-      </div>
-    )
+    return <LoadingScreen title="Loading Moderation" subtitle="Preparing moderation dashboard..." />
   }
 
   if (!session || !['editor', 'admin'].includes(session.user.role)) {
+    toast.error('You are not authorized to access this page')
+    redirect('/posts')
     return null
   }
 

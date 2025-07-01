@@ -12,7 +12,8 @@ import { useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { BookOpen, Shield, Users, FileText, ArrowRight, Loader2 } from "lucide-react"
+import { BookOpen, Shield, Users, FileText, ArrowRight } from "lucide-react"
+import { LoadingScreen } from "@/components/ui/loading-screen"
 
 /**
  * Demo account information for display purposes
@@ -96,12 +97,7 @@ export default function Home() {
   // Show loading state while checking authentication
   if (status === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
+      <LoadingScreen />
     )
   }
 

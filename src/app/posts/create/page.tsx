@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { toast } from 'react-toastify';
@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import RichTextEditor from '@/components/ui/rich-text-editor';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -24,6 +23,8 @@ import {
   X,
   Plus
 } from 'lucide-react';
+import RichTextEditor from '@/components/ui/rich-text-editor';
+import { LoadingScreen } from '@/components/ui/loading-screen';
 
 interface PostFormData {
   title: string;
@@ -269,11 +270,7 @@ const CreatePostPage = () => {
   };
 
   if (status === 'loading') {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return <LoadingScreen title="Preparing Editor" subtitle="Setting up your writing environment..." />
   }
 
   if (!session) return null;
@@ -364,7 +361,7 @@ const CreatePostPage = () => {
               {/* Content */}
               <Card className="shadow-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-0">
                 <CardHeader>
-                  <CardTitle>Content *</CardTitle>
+                  <CardTitle>Content <span className="text-red-500">*</span></CardTitle>
                   <CardDescription>
                     Write your post content with our rich text editor. Supports formatting, links, and more.
                   </CardDescription>
@@ -389,7 +386,7 @@ const CreatePostPage = () => {
               {/* Excerpt */}
               <Card className="shadow-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-0">
                 <CardHeader>
-                  <CardTitle>Excerpt *</CardTitle>
+                  <CardTitle>Excerpt <span className="text-red-500">*</span></CardTitle>
                   <CardDescription>
                     A brief summary that appears in post previews
                   </CardDescription>
@@ -536,7 +533,7 @@ const CreatePostPage = () => {
         </form>
       </div>
 
-
+      {isLoading && <LoadingScreen />}
     </div>
   );
 };

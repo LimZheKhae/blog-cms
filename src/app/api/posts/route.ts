@@ -176,27 +176,14 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const search = searchParams.get('search');
     const sortBy = searchParams.get('sortBy') || 'newest';
+    const draftsOnly = searchParams.get('draftsOnly') === 'true'; // New parameter for drafts
     
     const offset = (page - 1) * limit;
 
-    // Simple approach: get all posts and filter/sort in memory for now
-    // This is fine for small datasets, can be optimized later
     let posts;
     
-    if (status && status !== 'all') {
-      posts = await sql`
-        SELECT 
-          p.id, p.title, p.slug, p.content, p.excerpt, p.tags, p.status, 
-          p.views_count, p.likes_count, p.reading_time_minutes,
-          p.created_at, p.updated_at,
-          u.id as author_id, u.name as author_name, u.email as author_email, 
-          u.image as author_avatar
-        FROM posts p
-        LEFT JOIN users u ON p.author_id = u.id
-        WHERE p.status = ${status}
-        ORDER BY p.created_at DESC
-      `;
-    } else {
+    if (draftsOnly) {
+      // Special endpoint for user's own drafts only
       posts = await sql`
         SELECT 
           p.id, p.title, p.slug, p.content, p.excerpt, p.tags, p.status, 
@@ -206,8 +193,86 @@ export async function GET(request: NextRequest) {
           u.avatar_url as author_avatar
         FROM posts p
         LEFT JOIN users u ON p.author_id = u.id
-        ORDER BY p.created_at DESC
+        WHERE p.status = 'draft' AND p.author_id = ${session.user.id}
+        ORDER BY p.updated_at DESC
       `;
+    } else {
+      // For main posts listing - implement proper access control
+      if (status === 'draft') {
+        // Only editors/admins can see all drafts, authors see only their own
+        if (['editor', 'admin'].includes(session.user.role)) {
+          posts = await sql`
+            SELECT 
+              p.id, p.title, p.slug, p.content, p.excerpt, p.tags, p.status, 
+              p.views_count, p.likes_count, p.reading_time_minutes,
+              p.created_at, p.updated_at,
+              u.id as author_id, u.name as author_name, u.email as author_email, 
+              u.avatar_url as author_avatar
+            FROM posts p
+            LEFT JOIN users u ON p.author_id = u.id
+            WHERE p.status = 'draft'
+            ORDER BY p.created_at DESC
+          `;
+        } else {
+          // Authors see only their own drafts
+          posts = await sql`
+            SELECT 
+              p.id, p.title, p.slug, p.content, p.excerpt, p.tags, p.status, 
+              p.views_count, p.likes_count, p.reading_time_minutes,
+              p.created_at, p.updated_at,
+              u.id as author_id, u.name as author_name, u.email as author_email, 
+              u.avatar_url as author_avatar
+            FROM posts p
+            LEFT JOIN users u ON p.author_id = u.id
+            WHERE p.status = 'draft' AND p.author_id = ${session.user.id}
+            ORDER BY p.created_at DESC
+          `;
+        }
+      } else if (status === 'published') {
+        // Everyone can see published posts
+        posts = await sql`
+          SELECT 
+            p.id, p.title, p.slug, p.content, p.excerpt, p.tags, p.status, 
+            p.views_count, p.likes_count, p.reading_time_minutes,
+            p.created_at, p.updated_at,
+            u.id as author_id, u.name as author_name, u.email as author_email, 
+            u.avatar_url as author_avatar
+          FROM posts p
+          LEFT JOIN users u ON p.author_id = u.id
+          WHERE p.status = 'published'
+          ORDER BY p.created_at DESC
+        `;
+      } else {
+        // "all" filter - show published posts + user's own drafts
+        if (['editor', 'admin'].includes(session.user.role)) {
+          // Editors/admins see everything
+          posts = await sql`
+            SELECT 
+              p.id, p.title, p.slug, p.content, p.excerpt, p.tags, p.status, 
+              p.views_count, p.likes_count, p.reading_time_minutes,
+              p.created_at, p.updated_at,
+              u.id as author_id, u.name as author_name, u.email as author_email, 
+              u.avatar_url as author_avatar
+            FROM posts p
+            LEFT JOIN users u ON p.author_id = u.id
+            ORDER BY p.created_at DESC
+          `;
+        } else {
+          // Authors see published posts + their own drafts
+          posts = await sql`
+            SELECT 
+              p.id, p.title, p.slug, p.content, p.excerpt, p.tags, p.status, 
+              p.views_count, p.likes_count, p.reading_time_minutes,
+              p.created_at, p.updated_at,
+              u.id as author_id, u.name as author_name, u.email as author_email, 
+              u.avatar_url as author_avatar
+            FROM posts p
+            LEFT JOIN users u ON p.author_id = u.id
+            WHERE p.status = 'published' OR (p.status = 'draft' AND p.author_id = ${session.user.id})
+            ORDER BY p.created_at DESC
+          `;
+        }
+      }
     }
     console.log(posts);
 

@@ -29,61 +29,152 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20')
     const offset = (page - 1) * limit
 
-    let whereClause = ''
-    let params: any[] = []
+    // Get comments with related data using conditional queries based on filter
+    let commentsResult: any[]
+    let countResult: any[]
 
-    // Build where clause based on filter
-    switch (filter) {
-      case 'reported':
-        whereClause = 'WHERE c.is_reported = true AND c.is_hidden = false'
-        break
-      case 'hidden':
-        whereClause = 'WHERE c.is_hidden = true'
-        break
-      case 'pending':
-        whereClause = 'WHERE c.is_reported = true AND c.is_hidden = false'
-        break
-      case 'all':
-      default:
-        whereClause = 'WHERE 1=1'
-        break
+    if (filter === 'pending') {
+      // Pending: reported but not hidden
+      commentsResult = await sql`
+        SELECT 
+          c.id,
+          c.content,
+          c.created_at,
+          c.report_count,
+          c.is_reported,
+          c.is_hidden,
+          c.hidden_by,
+          c.hidden_at,
+          c.hidden_reason,
+          u.name as author_name,
+          u.avatar_url as author_avatar,
+          p.id as post_id,
+          p.title as post_title,
+          p.slug as post_slug,
+          hb.name as hidden_by_name
+        FROM comments c
+        LEFT JOIN users u ON c.author_id = u.id
+        LEFT JOIN posts p ON c.post_id = p.id
+        LEFT JOIN users hb ON c.hidden_by = hb.id
+        WHERE c.is_reported = true AND c.is_hidden = false
+        ORDER BY 
+          c.report_count DESC,
+          c.created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `
+
+      countResult = await sql`
+        SELECT COUNT(*) as total
+        FROM comments c
+        WHERE c.is_reported = true AND c.is_hidden = false
+      `
+    } else if (filter === 'reported') {
+      // All reported comments (including hidden ones)
+      commentsResult = await sql`
+        SELECT 
+          c.id,
+          c.content,
+          c.created_at,
+          c.report_count,
+          c.is_reported,
+          c.is_hidden,
+          c.hidden_by,
+          c.hidden_at,
+          c.hidden_reason,
+          u.name as author_name,
+          u.avatar_url as author_avatar,
+          p.id as post_id,
+          p.title as post_title,
+          p.slug as post_slug,
+          hb.name as hidden_by_name
+        FROM comments c
+        LEFT JOIN users u ON c.author_id = u.id
+        LEFT JOIN posts p ON c.post_id = p.id
+        LEFT JOIN users hb ON c.hidden_by = hb.id
+        WHERE c.is_reported = true
+        ORDER BY 
+          c.report_count DESC,
+          c.created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `
+
+      countResult = await sql`
+        SELECT COUNT(*) as total
+        FROM comments c
+        WHERE c.is_reported = true
+      `
+    } else if (filter === 'hidden') {
+      // Only hidden comments
+      commentsResult = await sql`
+        SELECT 
+          c.id,
+          c.content,
+          c.created_at,
+          c.report_count,
+          c.is_reported,
+          c.is_hidden,
+          c.hidden_by,
+          c.hidden_at,
+          c.hidden_reason,
+          u.name as author_name,
+          u.avatar_url as author_avatar,
+          p.id as post_id,
+          p.title as post_title,
+          p.slug as post_slug,
+          hb.name as hidden_by_name
+        FROM comments c
+        LEFT JOIN users u ON c.author_id = u.id
+        LEFT JOIN posts p ON c.post_id = p.id
+        LEFT JOIN users hb ON c.hidden_by = hb.id
+        WHERE c.is_hidden = true
+        ORDER BY 
+          c.hidden_at DESC,
+          c.created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `
+
+      countResult = await sql`
+        SELECT COUNT(*) as total
+        FROM comments c
+        WHERE c.is_hidden = true
+      `
+    } else {
+      // All comments
+      commentsResult = await sql`
+        SELECT 
+          c.id,
+          c.content,
+          c.created_at,
+          c.report_count,
+          c.is_reported,
+          c.is_hidden,
+          c.hidden_by,
+          c.hidden_at,
+          c.hidden_reason,
+          u.name as author_name,
+          u.avatar_url as author_avatar,
+          p.id as post_id,
+          p.title as post_title,
+          p.slug as post_slug,
+          hb.name as hidden_by_name
+        FROM comments c
+        LEFT JOIN users u ON c.author_id = u.id
+        LEFT JOIN posts p ON c.post_id = p.id
+        LEFT JOIN users hb ON c.hidden_by = hb.id
+        ORDER BY 
+          CASE WHEN c.is_reported = true THEN 0 ELSE 1 END,
+          c.report_count DESC,
+          c.created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `
+
+      countResult = await sql`
+        SELECT COUNT(*) as total
+        FROM comments c
+      `
     }
 
-    // Get comments with related data using template literals for Neon
-    const commentsResult = await sql`
-      SELECT 
-        c.id,
-        c.content,
-        c.created_at,
-        c.report_count,
-        c.is_reported,
-        c.is_hidden,
-        c.hidden_by,
-        c.hidden_at,
-        c.hidden_reason,
-        u.name as author_name,
-        u.avatar_url as author_avatar,
-        p.id as post_id,
-        p.title as post_title,
-        p.slug as post_slug,
-        hb.name as hidden_by_name
-      FROM comments c
-      LEFT JOIN users u ON c.author_id = u.id
-      LEFT JOIN posts p ON c.post_id = p.id
-      LEFT JOIN users hb ON c.hidden_by = hb.id
-      ORDER BY 
-        CASE WHEN c.is_reported = true THEN 0 ELSE 1 END,
-        c.report_count DESC,
-        c.created_at DESC
-      LIMIT ${limit} OFFSET ${offset}
-    `
-    console.log(commentsResult)
-
-    // Get total count for pagination
-    const countResult = await sql`
-      SELECT COUNT(*) as total
-      FROM comments c
-    `
+    console.log(`Fetched ${commentsResult.length} comments for filter: ${filter}`)
     const total = parseInt(countResult[0].total)
 
     // Get recent reports for each comment

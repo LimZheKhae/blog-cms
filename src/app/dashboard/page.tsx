@@ -1,5 +1,5 @@
 import { getServerSession } from "next-auth"
-import authOptions from "@/lib/auth"
+import { authOptions } from "@/lib/auth"
 import type { Session } from "next-auth"
 import { sql } from "@/lib/db"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -28,11 +28,12 @@ export default async function Dashboard() {
     sql`SELECT COUNT(*) as count FROM users`,
   ])
 
-  // Get recent posts
+  // Get recent published posts only
   const recentPosts = await sql`
     SELECT p.*, u.name as author_name 
     FROM posts p 
     JOIN users u ON p.author_id = u.id 
+    WHERE p.status = 'published'
     ORDER BY p.created_at DESC 
     LIMIT 5
   `
@@ -96,7 +97,10 @@ export default async function Dashboard() {
             <Eye className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <Badge variant="outline" className="text-sm">
+            <Badge 
+              variant={session.user.role === 'admin' ? 'destructive' : session.user.role === 'editor' ? 'default' : 'secondary'}
+              className="text-sm font-medium capitalize"
+            >
               {session.user.role}
             </Badge>
           </CardContent>

@@ -7,7 +7,7 @@
 "use client"
 
 import type React from "react"
-import { signIn, getSession } from "next-auth/react"
+import { signIn, getSession, useSession } from "next-auth/react"
 import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2, Mail, AlertCircle } from "lucide-react"
+import { AlertCircle, Mail, Loader2 } from "lucide-react"
 
 /**
  * Demo user accounts for easy testing
@@ -232,7 +232,7 @@ export default function SignIn() {
                 ) : (
                   "Sign In"
                 )}
-            </Button>
+              </Button>
           </form>
 
           {/* Divider */}

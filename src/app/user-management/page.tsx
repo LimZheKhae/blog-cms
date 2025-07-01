@@ -1,11 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import React, { useState, useEffect } from 'react'
+import { useSession } from 'next-auth/react'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   Table,
   TableBody,
@@ -37,25 +39,27 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Label } from "@/components/ui/label"
 import { 
   Users, 
   UserPlus, 
   Search, 
   Filter, 
   MoreHorizontal, 
-  Shield, 
-  Edit3, 
+  Eye as EyeIcon, 
+  Crown, 
+  Briefcase, 
+  PenTool, 
+  UserCheck, 
+  UserX, 
   Trash2,
-  Eye,
-  UserCheck,
-  UserX,
-  Crown,
-  Briefcase,
-  PenTool,
-  EyeIcon
-} from "lucide-react"
+  Calendar,
+  TrendingUp,
+  Shield,
+  AlertCircle
+} from 'lucide-react'
 import { toast } from 'react-toastify'
+import { hasPermission, PERMISSIONS } from '@/lib/permissions'
+import { LoadingSpinner } from '@/components/ui/loading-spinner'
 
 interface User {
   id: string
@@ -335,7 +339,7 @@ export default function UserManagementPage() {
         <CardContent>
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <LoadingSpinner />
             </div>
           ) : (
             <Table>
@@ -407,7 +411,7 @@ export default function UserManagementPage() {
                                 setShowUserDialog(true)
                               }}
                             >
-                              <Eye className="mr-2 h-4 w-4" />
+                              <EyeIcon className="mr-2 h-4 w-4" />
                               View Details
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />

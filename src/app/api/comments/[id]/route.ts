@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { neon } from '@neondatabase/serverless';
-import authConfig from '@/lib/auth';
+import { authOptions } from '@/lib/auth';
 import type { Session } from 'next-auth';
 
 // Initialize database connection
@@ -10,10 +10,15 @@ const sql = neon(process.env.DATABASE_URL!);
 // DELETE /api/comments/[id] - Delete a comment (editors/admins only)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authConfig) as Session | null;
+    const session = await getServerSession(authOptions) as Session | null;
+    
+    console.log('DELETE Comment - Session:', {
+      user: session?.user,
+      role: session?.user?.role
+    });
     
     if (!session?.user) {
       return NextResponse.json(
@@ -24,14 +29,23 @@ export async function DELETE(
 
     // Check if user has permission to delete comments
     const allowedRoles = ['editor', 'admin'];
-    if (!allowedRoles.includes(session.user.role)) {
+    const userRole = session.user.role;
+    
+    console.log('DELETE Comment - Role check:', {
+      userRole,
+      allowedRoles,
+      hasPermission: allowedRoles.includes(userRole)
+    });
+    
+    if (!allowedRoles.includes(userRole)) {
       return NextResponse.json(
         { error: 'Insufficient permissions to delete comments' },
         { status: 403 }
       );
     }
 
-    const commentId = parseInt(params.id);
+    const { id } = await params;
+    const commentId = parseInt(id);
 
     // Check if comment exists
     const commentExists = await sql`
@@ -65,10 +79,15 @@ export async function DELETE(
 // PATCH /api/comments/[id] - Update comment (hide/unhide, or report)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authConfig) as Session | null;
+    const session = await getServerSession(authOptions) as Session | null;
+    
+    console.log('PATCH Comment - Session:', {
+      user: session?.user,
+      role: session?.user?.role
+    });
     
     if (!session?.user) {
       return NextResponse.json(
@@ -77,9 +96,17 @@ export async function PATCH(
       );
     }
 
-    const commentId = parseInt(params.id);
+    const { id } = await params;
+    const commentId = parseInt(id);
     const body = await request.json();
     const { action, reason, description } = body;
+
+    console.log('PATCH Comment - Request:', {
+      commentId,
+      action,
+      reason,
+      userRole: session.user.role
+    });
 
     // Check if comment exists
     const commentResult = await sql`
@@ -124,6 +151,15 @@ export async function PATCH(
         VALUES (${commentId}, ${session.user.id}, ${reason}, ${description || null})
       `;
 
+      // Update the comment's report count and mark as reported
+      await sql`
+        UPDATE comments 
+        SET 
+          report_count = report_count + 1,
+          is_reported = true
+        WHERE id = ${commentId}
+      `;
+
       return NextResponse.json({
         success: true,
         message: 'Comment reported successfully'
@@ -132,9 +168,19 @@ export async function PATCH(
     } else if (action === 'hide' || action === 'unhide') {
       // Only editors/admins can hide/unhide comments
       const allowedRoles = ['editor', 'admin'];
-      if (!allowedRoles.includes(session.user.role)) {
+      const userRole = session.user.role;
+      
+      console.log('PATCH Comment - Hide/Unhide permission check:', {
+        userRole,
+        allowedRoles,
+        hasPermission: allowedRoles.includes(userRole),
+        action
+      });
+      
+      if (!allowedRoles.includes(userRole)) {
+        console.log('PATCH Comment - Permission denied for role:', userRole);
         return NextResponse.json(
-          { error: 'Insufficient permissions to hide/unhide comments' },
+          { error: `Insufficient permissions to ${action} comments. Required: editor or admin, but got: ${userRole}` },
           { status: 403 }
         );
       }
@@ -158,6 +204,8 @@ export async function PATCH(
           WHERE id = ${commentId}
         `;
 
+        console.log('Comment hidden successfully by:', session.user.role);
+
         return NextResponse.json({
           success: true,
           message: 'Comment hidden successfully'
@@ -174,6 +222,8 @@ export async function PATCH(
             hidden_reason = null
           WHERE id = ${commentId}
         `;
+
+        console.log('Comment unhidden successfully by:', session.user.role);
 
         return NextResponse.json({
           success: true,

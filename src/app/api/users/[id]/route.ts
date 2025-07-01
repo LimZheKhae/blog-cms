@@ -9,7 +9,7 @@ const sql = neon(process.env.DATABASE_URL!)
 // GET /api/users/[id] - Get specific user details
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions) as any
@@ -22,7 +22,7 @@ export async function GET(
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
 
-    const userId = params.id
+    const { id: userId } = await params
 
     // Get user with detailed statistics
     const userResult = await sql`
@@ -120,7 +120,7 @@ export async function GET(
 // PATCH /api/users/[id] - Update user
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions) as any
@@ -133,7 +133,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
 
-    const userId = params.id
+    const { id: userId } = await params
     const body = await request.json()
     const { name, email, role, is_active } = body
 
@@ -178,46 +178,79 @@ export async function PATCH(
       }
     }
 
-    // Build update query dynamically
-    const updateFields: string[] = []
-    const updateValues: any[] = []
+    // Update the user with conditional fields
+    let result
     
-    if (name !== undefined) {
-      updateFields.push(`name = $${updateValues.length + 1}`)
-      updateValues.push(name)
-    }
-    
-    if (email !== undefined) {
-      updateFields.push(`email = $${updateValues.length + 1}`)
-      updateValues.push(email)
-    }
-    
-    if (role !== undefined) {
-      updateFields.push(`role = $${updateValues.length + 1}`)
-      updateValues.push(role)
-    }
-    
-    if (is_active !== undefined) {
-      updateFields.push(`is_active = $${updateValues.length + 1}`)
-      updateValues.push(is_active)
-    }
-
-    updateFields.push(`updated_at = NOW()`)
-
-    if (updateFields.length === 1) { // Only updated_at
+    if (name !== undefined && email !== undefined && role !== undefined && is_active !== undefined) {
+      // All fields
+      result = await sql`
+        UPDATE users 
+        SET name = ${name}, email = ${email}, role = ${role}, is_active = ${is_active}, updated_at = NOW()
+        WHERE id = ${userId}
+        RETURNING id, name, email, role, is_active, updated_at
+      `
+    } else if (name !== undefined && email !== undefined && role !== undefined) {
+      // Name, email, role
+      result = await sql`
+        UPDATE users 
+        SET name = ${name}, email = ${email}, role = ${role}, updated_at = NOW()
+        WHERE id = ${userId}
+        RETURNING id, name, email, role, is_active, updated_at
+      `
+    } else if (name !== undefined && email !== undefined && is_active !== undefined) {
+      // Name, email, status
+      result = await sql`
+        UPDATE users 
+        SET name = ${name}, email = ${email}, is_active = ${is_active}, updated_at = NOW()
+        WHERE id = ${userId}
+        RETURNING id, name, email, role, is_active, updated_at
+      `
+    } else if (role !== undefined && is_active !== undefined) {
+      // Role and status
+      result = await sql`
+        UPDATE users 
+        SET role = ${role}, is_active = ${is_active}, updated_at = NOW()
+        WHERE id = ${userId}
+        RETURNING id, name, email, role, is_active, updated_at
+      `
+    } else if (name !== undefined) {
+      // Name only
+      result = await sql`
+        UPDATE users 
+        SET name = ${name}, updated_at = NOW()
+        WHERE id = ${userId}
+        RETURNING id, name, email, role, is_active, updated_at
+      `
+    } else if (email !== undefined) {
+      // Email only
+      result = await sql`
+        UPDATE users 
+        SET email = ${email}, updated_at = NOW()
+        WHERE id = ${userId}
+        RETURNING id, name, email, role, is_active, updated_at
+      `
+    } else if (role !== undefined) {
+      // Role only
+      result = await sql`
+        UPDATE users 
+        SET role = ${role}, updated_at = NOW()
+        WHERE id = ${userId}
+        RETURNING id, name, email, role, is_active, updated_at
+      `
+    } else if (is_active !== undefined) {
+      // Status only
+      result = await sql`
+        UPDATE users 
+        SET is_active = ${is_active}, updated_at = NOW()
+        WHERE id = ${userId}
+        RETURNING id, name, email, role, is_active, updated_at
+      `
+    } else {
       return NextResponse.json(
         { error: 'No fields to update' },
         { status: 400 }
       )
     }
-
-    // Update the user
-    const result = await sql`
-      UPDATE users 
-      SET ${updateFields.join(', ')}
-      WHERE id = ${userId}
-      RETURNING id, name, email, role, is_active, updated_at
-    `
 
     // Log the action
     await sql`
@@ -258,7 +291,7 @@ export async function PATCH(
 // DELETE /api/users/[id] - Delete user
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions) as any
@@ -271,7 +304,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
 
-    const userId = params.id
+    const { id: userId } = await params
 
     // Prevent admin from deleting themselves
     if (userId === session.user.id) {

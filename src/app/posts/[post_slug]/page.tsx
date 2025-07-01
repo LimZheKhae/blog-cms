@@ -61,6 +61,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from 'react-toastify'
+import { LoadingScreen } from '@/components/ui/loading-screen'
 // Removed markdown imports since we're using HTML content from TipTap
 
 interface Post {
@@ -333,12 +334,7 @@ export default function PostPage({ params }: Props) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-white">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading article...</p>
-        </div>
-      </div>
+      <LoadingScreen />
     )
   }
 
@@ -485,9 +481,86 @@ export default function PostPage({ params }: Props) {
             {/* Article Body */}
             <div className="bg-white/60 backdrop-blur-sm rounded-lg p-8 border border-gray-200">
               <div 
-                className="prose prose-lg max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-code:text-purple-600 prose-code:bg-purple-50 prose-code:px-2 prose-code:py-1 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-gray-100 prose-blockquote:border-l-blue-500 prose-blockquote:bg-blue-50 prose-blockquote:italic prose-img:rounded-lg prose-img:shadow-md"
+                className="prose prose-lg max-w-none prose-headings:text-gray-900 prose-headings:font-bold prose-headings:tracking-tight prose-h1:text-4xl prose-h1:mt-8 prose-h1:mb-4 prose-h2:text-3xl prose-h2:mt-8 prose-h2:mb-4 prose-h2:border-b prose-h2:border-gray-200 prose-h2:pb-2 prose-h3:text-2xl prose-h3:mt-6 prose-h3:mb-3 prose-h4:text-xl prose-h4:mt-6 prose-h4:mb-3 prose-p:text-gray-700 prose-p:leading-relaxed prose-p:mb-4 prose-strong:text-gray-900 prose-strong:font-semibold prose-em:text-gray-700 prose-em:italic prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-a:font-medium prose-ul:text-gray-700 prose-ul:my-4 prose-ol:text-gray-700 prose-ol:my-4 prose-li:text-gray-700 prose-li:my-1 prose-li:leading-relaxed prose-blockquote:border-l-4 prose-blockquote:border-l-blue-500 prose-blockquote:bg-gradient-to-r prose-blockquote:from-blue-50 prose-blockquote:to-indigo-50 prose-blockquote:italic prose-blockquote:text-gray-700 prose-blockquote:pl-6 prose-blockquote:py-4 prose-blockquote:rounded-r-lg prose-blockquote:shadow-sm prose-blockquote:my-6 prose-img:rounded-xl prose-img:shadow-lg prose-img:border prose-img:border-gray-200 prose-img:my-8 prose-hr:border-gray-300 prose-hr:my-8 prose-hr:border-t-2 prose-table:border-collapse prose-table:border prose-table:border-gray-300 prose-table:my-6 prose-th:border prose-th:border-gray-300 prose-th:bg-gray-50 prose-th:p-3 prose-th:text-left prose-th:font-semibold prose-th:text-gray-900 prose-td:border prose-td:border-gray-300 prose-td:p-3 prose-td:text-gray-700 prose-code:text-emerald-700 prose-code:bg-gradient-to-r prose-code:from-emerald-50 prose-code:to-teal-50 prose-code:px-3 prose-code:py-1.5 prose-code:rounded-lg prose-code:text-sm prose-code:font-mono prose-code:font-semibold prose-code:border prose-code:border-emerald-200 prose-code:shadow-sm prose-code:before:content-[''] prose-code:after:content-[''] prose-pre:relative prose-pre:my-8"
                 dangerouslySetInnerHTML={{ __html: post.content }}
               />
+              
+              <style jsx>{`
+                :global(.prose pre) {
+                  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%) !important;
+                  border: 1px solid #475569 !important;
+                  border-radius: 16px !important;
+                  padding: 0 !important;
+                  margin: 32px 0 !important;
+                  overflow: hidden !important;
+                  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+                  position: relative !important;
+                }
+                
+                :global(.prose pre::before) {
+                  content: '';
+                  display: block;
+                  height: 40px;
+                  background: linear-gradient(90deg, #1e293b 0%, #334155 100%);
+                  border-bottom: 1px solid #475569;
+                  position: relative;
+                }
+                
+                :global(.prose pre::after) {
+                  content: '⚫ 🟡 🟢';
+                  position: absolute;
+                  top: 12px;
+                  left: 16px;
+                  font-size: 12px;
+                  line-height: 1;
+                }
+                
+                :global(.prose pre code) {
+                  background: transparent !important;
+                  border: none !important;
+                  padding: 24px !important;
+                  color: #f1f5f9 !important;
+                  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace !important;
+                  line-height: 1.7 !important;
+                  font-size: 14px !important;
+                  display: block !important;
+                  overflow-x: auto !important;
+                }
+                
+                :global(.prose :not(pre) > code) {
+                  background: linear-gradient(135deg, #ecfdf5 0%, #f0fdfa 100%) !important;
+                  color: #047857 !important;
+                  padding: 4px 8px !important;
+                  border-radius: 8px !important;
+                  border: 1px solid #a7f3d0 !important;
+                  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace !important;
+                  font-size: 14px !important;
+                  font-weight: 600 !important;
+                  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1) !important;
+                }
+                
+                :global(.prose blockquote) {
+                  background: linear-gradient(135deg, #eff6ff 0%, #f0f9ff 100%) !important;
+                  border-left: 4px solid #3b82f6 !important;
+                  border-radius: 0 12px 12px 0 !important;
+                  padding: 24px !important;
+                  margin: 32px 0 !important;
+                  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+                  position: relative !important;
+                }
+                
+                :global(.prose blockquote::before) {
+                  content: '"';
+                  position: absolute;
+                  top: -5px;
+                  left: 20px;
+                  font-size: 48px;
+                  color: #3b82f6;
+                  opacity: 0.2;
+                  line-height: 1;
+                  font-family: serif;
+                }
+              `}</style>
             </div>
 
             {/* Tags */}

@@ -30,6 +30,7 @@ import {
   Sparkles
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { LoadingScreen } from "@/components/ui/loading-screen"
 
 interface Post {
   id: string
@@ -53,7 +54,7 @@ export default function PostsPage() {
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [statusFilter, setStatusFilter] = useState<string>("published")
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [sortBy, setSortBy] = useState<string>("newest")
 
@@ -104,11 +105,7 @@ export default function PostsPage() {
 
   // Handle authentication states
   if (status === "loading") {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-      </div>
-    )
+    return <LoadingScreen />
   }
 
   if (!session) {
@@ -159,11 +156,7 @@ export default function PostsPage() {
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-      </div>
-    )
+    return <LoadingScreen title="Loading Posts" subtitle="Fetching latest articles..." />
   }
 
   return (
@@ -216,6 +209,16 @@ export default function PostsPage() {
 
             {/* Filters */}
             <div className="flex items-center gap-3">
+              {/* Create New Post Button */}
+              {session?.user?.role && ['author', 'editor', 'admin'].includes(session.user.role) && (
+                <Link href="/posts/create">
+                  <Button className="bg-blue-600 hover:bg-blue-700">
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Create Post
+                  </Button>
+                </Link>
+              )}
+              
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-32 bg-white/70 backdrop-blur-sm">
                   <Filter className="h-4 w-4 mr-2" />
@@ -224,7 +227,10 @@ export default function PostsPage() {
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
                   <SelectItem value="published">Published</SelectItem>
-                  <SelectItem value="draft">Draft</SelectItem>
+                  {/* Only show draft filter to authors/editors/admins */}
+                  {session?.user?.role && ['author', 'editor', 'admin'].includes(session.user.role) && (
+                    <SelectItem value="draft">My Drafts</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
 
@@ -294,7 +300,7 @@ export default function PostsPage() {
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between mb-2">
                         <Badge variant={getStatusBadgeVariant(post.status)}>
-                          {post.status}
+                          {post.status === 'draft' ? '📝 Draft' : '✅ Published'}
                         </Badge>
                         <div className="flex items-center text-xs text-gray-500">
                           <Clock className="h-3 w-3 mr-1" />
@@ -350,7 +356,7 @@ export default function PostsPage() {
                     <div className="flex-1 p-6">
                       <div className="flex items-center justify-between mb-2">
                         <Badge variant={getStatusBadgeVariant(post.status)}>
-                          {post.status}
+                          {post.status === 'draft' ? '📝 Draft' : '✅ Published'}
                         </Badge>
                         <div className="flex items-center text-xs text-gray-500">
                           <Clock className="h-3 w-3 mr-1" />

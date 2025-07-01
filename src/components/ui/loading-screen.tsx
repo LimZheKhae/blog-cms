@@ -1,6 +1,14 @@
 "use client"
 
-const Loading = () => {
+interface LoadingScreenProps {
+  title?: string
+  subtitle?: string
+}
+
+export const LoadingScreen = ({ 
+  title = "Loading",
+  subtitle = "Preparing your experience..."
+}: LoadingScreenProps) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center">
       {/* Subtle background decoration */}
@@ -36,15 +44,13 @@ const Loading = () => {
         {/* Text content */}
         <div className="space-y-2">
           <h2 className="text-2xl font-semibold text-slate-800 dark:text-slate-200 opacity-0 animate-[fadeIn_0.6s_ease-out_forwards]">
-            Loading
+            {title}
           </h2>
           <p className="text-slate-600 dark:text-slate-400 opacity-0 animate-[fadeIn_0.6s_ease-out_0.3s_forwards]">
-            Preparing your experience...
+            {subtitle}
           </p>
         </div>
       </div>
     </div>
-  );
-};
-
-export default Loading; 
+  )
+} 

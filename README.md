@@ -15,7 +15,8 @@ A comprehensive blog content management system built with Next.js 14, featuring 
 
 ### Authentication & Authorization
 
-- **NextAuth.js Integration**: Secure authentication with Google OAuth
+- **Dual Authentication**: Secure credential-based login + Google/Microsoft OAuth
+- **Password Security**: Bcrypt hashing with salt rounds for credential accounts
 - **Role-Based Permissions**: 4-tier permission system (Admin, Editor, Author, Viewer)
 - **Protected Routes**: Automatic route protection based on user roles
 - **Session Management**: Secure session handling with JWT tokens
@@ -32,12 +33,13 @@ A comprehensive blog content management system built with Next.js 14, featuring 
 
 ### Tech Stack
 
-- **Frontend**: Next.js 14 (App Router), React 18, TypeScript
-- **Styling**: Tailwind CSS, Radix UI Components
+- **Frontend**: Next.js 15 (App Router), React 19, TypeScript
+- **Styling**: Tailwind CSS, shadcn/ui (Radix UI Components)
 - **Authentication**: NextAuth.js v4
 - **Database**: PostgreSQL (Neon)
 - **ORM**: Direct SQL queries with Neon serverless
-- **Notifications**: React Toastify
+- **Rich Text Editor**: TipTap with markdown support
+- **Notifications**: Sonner Toast
 
 ### Project Structure
 
@@ -55,7 +57,7 @@ src/
 │   └── posts/                    # Blog post pages
 ├── components/                   # Reusable components
 │   ├── layout/                   # Layout components
-│   └── ui/                       # UI components (Radix)
+│   └── ui/                       # UI components (shadcn/ui)
 ├── lib/                          # Utility libraries
 │   ├── auth.ts                   # NextAuth configuration
 │   ├── db.ts                     # Database connection
@@ -109,6 +111,70 @@ src/
 | Manage Settings   | ❌     | ❌     | ❌     | ✅    |
 
 \*Authors can only edit their own posts
+
+## 🔒 Security Features
+
+### Post Editing Security (STRICT RULES)
+
+**Critical Security Implementation** to prevent unauthorized access and ensure content integrity:
+
+#### 1. **Draft-Only Editing Policy**
+
+- **Rule**: Only draft posts can be edited
+- **Rationale**: Published posts are immutable to maintain content integrity
+- **Enforcement**: Server-side validation in API routes + frontend checks
+
+#### 2. **Ownership Verification**
+
+- **Rule**: Users can only edit their own posts (regardless of role)
+- **Scope**: Even administrators cannot edit other users' drafts
+- **Purpose**: Prevents unauthorized content modification
+
+#### 3. **Multi-Layer Security Architecture**
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Middleware    │    │   API Routes     │    │   Frontend      │
+│   Protection    │ -> │   Validation     │ -> │   Verification  │
+│                 │    │                  │    │                 │
+│ • Role check    │    │ • Ownership      │    │ • Error         │
+│ • Route guard   │    │ • Draft status   │    │   handling      │
+│ • Auth verify   │    │ • Permissions    │    │ • Redirects     │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+```
+
+#### 4. **Security Flow Example**
+
+```typescript
+// User attempts: /posts/edit/123 (not their post)
+
+// Step 1: Middleware
+✅ User authenticated with content creation role
+
+// Step 2: API Route (/api/posts/manage/123)
+❌ SELECT author_id FROM posts WHERE id = 123
+❌ author_id !== session.user.id
+❌ Return 403 Forbidden
+
+// Step 3: Frontend
+❌ Show error: "You can only edit your own draft posts"
+❌ Redirect to /my-drafts
+```
+
+#### 5. **Error Handling & User Experience**
+
+**Unauthorized Access Attempts Result In:**
+
+- Clear, specific error messages
+- Automatic redirection to appropriate pages
+- No sensitive information disclosure
+- Consistent user experience across all scenarios
+
+**Error Messages:**
+
+- `"You can only edit your own draft posts"`
+- `"Only draft posts can be edited. Published posts cannot be modified"`
+- `"Post not found"` (for non-existent posts)
 
 ## 🛡️ Comment Moderation System
 
@@ -186,6 +252,9 @@ src/
 
    # Seed with sample data
    node scripts/execute-enhanced-seed.js
+
+   # Add password authentication for demo users
+   node scripts/run-password-migration.js
    ```
 
 5. **Start Development Server**
@@ -323,12 +392,18 @@ Ensure all environment variables are set in production:
 
 ### Test Users
 
-The system comes with pre-seeded test users:
+The system comes with pre-seeded demo accounts:
 
-- **Admin**: admin@example.com
-- **Editor**: editor@example.com
-- **Author**: author@example.com
-- **Viewer**: viewer@example.com
+**Credential-based users (Password: Abcd1234):**
+
+- **Admin**: admin@company.com
+- **Editor**: editor@company.com
+- **Author**: author@company.com
+- **Viewer**: viewer@company.com
+
+**OAuth users (Google/Microsoft login):**
+
+- Additional users can be created via OAuth authentication
 
 ### Manual Testing
 
@@ -376,7 +451,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - **Next.js Team**: Amazing framework
 - **Vercel**: Hosting and deployment
-- **Radix UI**: Accessible components
+- **shadcn/ui**: Beautiful, accessible component library
+- **Radix UI**: Unstyled, accessible UI primitives
 - **Tailwind CSS**: Utility-first styling
 - **NextAuth.js**: Authentication solution
 
@@ -391,3 +467,27 @@ For support and questions:
 ---
 
 **Built with ❤️ using Next.js and modern web technologies**
+
+## 🛡️ Security Features
+
+### Post Editing Security (STRICT RULES)
+
+**Critical Security Implementation** to prevent unauthorized access and ensure content integrity:
+
+#### 1. **Draft-Only Editing Policy**
+
+- **Rule**: Only draft posts can be edited
+- **Rationale**: Published posts are immutable to maintain content integrity
+- **Enforcement**: Server-side validation in API routes + frontend checks
+
+#### 2. **Ownership Verification**
+
+- **Rule**: Users can only edit their own posts (regardless of role)
+- **Scope**: Even administrators cannot edit other users' drafts
+- **Purpose**: Prevents unauthorized content modification
+
+#### 3. **Multi-Layer Security Architecture**
+
+```
+
+```

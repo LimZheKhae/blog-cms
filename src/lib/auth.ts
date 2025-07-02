@@ -1,7 +1,7 @@
 /**
  * NextAuth v4 Configuration
  * This file configures authentication for the blog CMS using NextAuth.js v4
- * It handles user authentication via credentials (email-based for demo)
+ * It handles user authentication via credentials (email-based with password) and OAuth
  */
 
 import NextAuth, { type DefaultSession, type AuthOptions } from "next-auth"
@@ -10,13 +10,14 @@ import GoogleProvider from "next-auth/providers/google"
 import MicrosoftProvider from "next-auth/providers/azure-ad"
 import { neon } from "@neondatabase/serverless"
 import { z } from "zod"
+import bcrypt from "bcryptjs"
 
 // Initialize Neon database connection
 const sql = neon(process.env.DATABASE_URL!)
 
 /**
  * Schema for validating login credentials
- * Uses Zod for runtime validation of email format
+ * Uses Zod for runtime validation of email format and password requirements
  */
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -25,13 +26,13 @@ const loginSchema = z.object({
 
 /**
  * Database function to find user by email
- * Returns user data if found, null if not found
+ * Returns user data including password hash if found, null if not found
  */
 async function getUserByEmail(email: string) {
   try {
     // Query database for user with matching email
     const result = await sql`
-      SELECT id, email, name, role, avatar_url, created_at
+      SELECT id, email, name, role, avatar_url, password_hash, created_at
       FROM users 
       WHERE email = ${email}
       LIMIT 1
@@ -47,13 +48,13 @@ async function getUserByEmail(email: string) {
 
 /**
  * Database function to create a new user
- * Used for OAuth providers to automatically create user accounts
+ * Used for OAuth providers to automatically create user accounts (without password)
  */
 async function createUser(email: string, name: string, avatarUrl?: string) {
   try {
     const result = await sql`
-      INSERT INTO users (email, name, role, avatar_url)
-      VALUES (${email}, ${name}, 'viewer', ${avatarUrl || null})
+      INSERT INTO users (email, name, role, avatar_url, password_hash)
+      VALUES (${email}, ${name}, 'viewer', ${avatarUrl || null}, NULL)
       RETURNING id, email, name, role, avatar_url, created_at
     `
     
@@ -87,7 +88,7 @@ export const authOptions: AuthOptions = {
       tenantId: process.env.AZURE_AD_TENANT_ID,
     }),
     
-    // Credentials provider for email-based auth
+    // Credentials provider for email-based auth with password verification
     CredentialsProvider({
       // Provider display name
       name: "credentials",
@@ -107,7 +108,7 @@ export const authOptions: AuthOptions = {
       },
       
       /**
-       * Authorization function - validates user credentials
+       * Authorization function - validates user credentials with password verification
        * @param credentials - The submitted login credentials
        * @returns User object if valid, null if invalid
        */
@@ -121,7 +122,7 @@ export const authOptions: AuthOptions = {
             return null
           }
 
-          const { email } = validatedFields.data
+          const { email, password } = validatedFields.data
           
           // Fetch user from database
           const user = await getUserByEmail(email)
@@ -131,10 +132,19 @@ export const authOptions: AuthOptions = {
             return null
           }
 
-          // For demo purposes, we skip password verification
-          // In production, you would verify the password hash here:
-          // const isValidPassword = await bcrypt.compare(password, user.password_hash)
-          // if (!isValidPassword) return null
+          // Check if user has a password hash (credential-based user)
+          if (!user.password_hash) {
+            console.log("User exists but has no password (OAuth user):", email)
+            return null
+          }
+
+          // Verify password using bcrypt
+          const isValidPassword = await bcrypt.compare(password, user.password_hash)
+          
+          if (!isValidPassword) {
+            console.log("Invalid password for user:", email)
+            return null
+          }
 
           // Return user object with required fields
           return {
@@ -168,10 +178,10 @@ export const authOptions: AuthOptions = {
       
       // Handle Google OAuth
       if (account?.provider === "google" && user.email && user.name) {
-        console.log("SignIn callback - Google OAuth user:", user.email)
-        console.log("SignIn callback - User object:", user)
+        // console.log("SignIn callback - Google OAuth user:", user.email)
+        // console.log("SignIn callback - User object:", user)
         let dbUser = await getUserByEmail(user.email)
-        console.log("SignIn callback - Database user found:", dbUser)
+        // console.log("SignIn callback - Database user found:", dbUser)
         
         if (!dbUser) {
           // User doesn't exist, create new user with viewer role
@@ -247,7 +257,7 @@ export const authOptions: AuthOptions = {
         }
       }
       
-      console.log('JWT callback - token after:', token)
+      // console.log('JWT callback - token after:', token)
       return token
     },
 
@@ -259,8 +269,8 @@ export const authOptions: AuthOptions = {
      * @returns Modified session
      */
     async session({ session, token }: any) {
-      console.log('Session callback - token:', token)
-      console.log('Session callback - session before:', session)
+      // console.log('Session callback - token:', token)
+      // console.log('Session callback - session before:', session)
       
       // Add custom fields from token to session
       if (token && session.user) {
@@ -268,7 +278,7 @@ export const authOptions: AuthOptions = {
         session.user.role = token.role as "admin" | "editor" | "author" | "viewer"
       }
       
-      console.log('Session callback - session after:', session)
+      // console.log('Session callback - session after:', session)
       return session
     },
   },

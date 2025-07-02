@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { hasPermission, PERMISSIONS } from '@/lib/permissions'
+import { redirectUnauthorized } from '@/lib/auth-utils'
 import { Navbar } from '@/components/layout/navbar'
 import { Sidebar } from '@/components/layout/sidebar'
 
@@ -17,9 +18,9 @@ export default async function UserManagementLayout({
     redirect('/auth/signin')
   }
 
-  // Only admins can access user management
+  // Only admins can access user management - redirect others to their appropriate page
   if (!hasPermission(session.user.role, PERMISSIONS.MANAGE_USERS)) {
-    redirect('/dashboard')
+    redirectUnauthorized(session.user.role)
   }
 
   return (

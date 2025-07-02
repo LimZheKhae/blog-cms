@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { toast } from 'react-toastify';
@@ -23,7 +23,8 @@ import {
   X,
   Plus,
   Loader2,
-  CheckCircle
+  CheckCircle,
+  Shield
 } from 'lucide-react';
 import RichTextEditor from '@/components/ui/rich-text-editor';
 import { LoadingScreen } from '@/components/ui/loading-screen';
@@ -65,6 +66,7 @@ const EditPostPage = () => {
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [tagInput, setTagInput] = useState('');
+  const hasFetched = useRef(false);
   
   const [formData, setFormData] = useState<PostFormData>({
     title: '',
@@ -88,7 +90,11 @@ const EditPostPage = () => {
     // Only content creators can edit posts
     const allowedRoles = ['author', 'editor', 'admin'];
     if (!allowedRoles.includes(session.user.role)) {
-      router.push('/dashboard');
+      toast.error('❌ You do not have permission to edit posts!', {
+        className: '!bg-gradient-to-r !from-red-50 !to-rose-50 !text-red-800 !border-red-200',
+        progressClassName: '!bg-gradient-to-r !from-red-400 !to-rose-500',
+      });
+      router.push('/posts');
       return;
     }
   }, [session, status, router]);
@@ -96,13 +102,17 @@ const EditPostPage = () => {
   // Fetch post data
   useEffect(() => {
     const fetchPost = async () => {
-      if (!postId || !session?.user) return;
+      if (!postId || !session?.user || hasFetched.current) return;
+      
+      hasFetched.current = true;
 
       try {
         setLoading(true);
         const response = await fetch(`/api/posts/manage/${postId}`);
         
         if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          
           if (response.status === 404) {
             toast.error('❌ Post not found!', {
               className: '!bg-gradient-to-r !from-red-50 !to-rose-50 !text-red-800 !border-red-200',
@@ -111,7 +121,32 @@ const EditPostPage = () => {
             router.push('/my-drafts');
             return;
           }
-          throw new Error('Failed to fetch post');
+          
+          if (response.status === 403) {
+            // Handle specific authorization errors
+            const errorMessage = errorData.error || 'Access denied';
+            
+            if (errorMessage.includes('own posts')) {
+              toast.error('❌ You can only edit your own draft posts!', {
+                className: '!bg-gradient-to-r !from-red-50 !to-rose-50 !text-red-800 !border-red-200',
+                progressClassName: '!bg-gradient-to-r !from-red-400 !to-rose-500',
+              });
+            } else if (errorMessage.includes('draft posts')) {
+              toast.error('❌ Only draft posts can be edited. Published posts cannot be modified!', {
+                className: '!bg-gradient-to-r !from-red-50 !to-rose-50 !text-red-800 !border-red-200',
+                progressClassName: '!bg-gradient-to-r !from-red-400 !to-rose-500',
+              });
+            } else {
+              toast.error(`❌ ${errorMessage}`, {
+                className: '!bg-gradient-to-r !from-red-50 !to-rose-50 !text-red-800 !border-red-200',
+                progressClassName: '!bg-gradient-to-r !from-red-400 !to-rose-500',
+              });
+            }
+            router.push('/my-drafts');
+            return;
+          }
+          
+          throw new Error(errorData.error || 'Failed to fetch post');
         }
 
         const data = await response.json();
@@ -119,9 +154,17 @@ const EditPostPage = () => {
         if (data.success) {
           const postData = data.post;
           
-          // Security: Only allow editing own posts (unless admin/editor)
-          if (postData.author_id !== session.user.id && 
-              !['editor', 'admin'].includes(session.user.role)) {
+          // Double-check on frontend: Ensure this is a draft post owned by current user
+          if (postData.status !== 'draft') {
+            toast.error('❌ Only draft posts can be edited!', {
+              className: '!bg-gradient-to-r !from-red-50 !to-rose-50 !text-red-800 !border-red-200',
+              progressClassName: '!bg-gradient-to-r !from-red-400 !to-rose-500',
+            });
+            router.push('/my-drafts');
+            return;
+          }
+          
+          if (postData.author_id !== session.user.id) {
             toast.error('❌ You can only edit your own posts!', {
               className: '!bg-gradient-to-r !from-red-50 !to-rose-50 !text-red-800 !border-red-200',
               progressClassName: '!bg-gradient-to-r !from-red-400 !to-rose-500',
@@ -140,6 +183,9 @@ const EditPostPage = () => {
             status: postData.status,
             reading_time_minutes: postData.reading_time_minutes || 1
           });
+          
+          // Post data loaded - form will be populated automatically
+          // No need for success toast as user can see the form is filled
         } else {
           toast.error('❌ Failed to load post!', {
             className: '!bg-gradient-to-r !from-red-50 !to-rose-50 !text-red-800 !border-red-200',
@@ -159,7 +205,7 @@ const EditPostPage = () => {
       }
     };
 
-    if (session?.user) {
+    if (session?.user && !hasFetched.current) {
       fetchPost();
     }
   }, [postId, session, router]);
@@ -336,8 +382,24 @@ const EditPostPage = () => {
           setFormData(prev => ({ ...prev, status: statusToSave }));
         }
       } else {
+        // Handle specific error cases
+        let errorMessage = data.error || `Failed to ${isPublishing ? 'publish' : 'save'} post`;
+        
+        if (response.status === 403) {
+          if (data.error?.includes('own posts')) {
+            errorMessage = 'You can only edit your own draft posts!';
+          } else if (data.error?.includes('draft posts')) {
+            errorMessage = 'Only draft posts can be edited. Published posts cannot be modified!';
+          }
+          
+          // Redirect to drafts page for authorization errors
+          setTimeout(() => router.push('/my-drafts'), 2000);
+        } else if (response.status === 409) {
+          errorMessage = 'A post with this URL slug already exists. Please choose a different title or modify the slug.';
+        }
+        
         toast.update(loadingToast, {
-          render: data.error || `❌ Failed to ${isPublishing ? 'publish' : 'save'} post`,
+          render: `❌ ${errorMessage}`,
           type: 'error',
           isLoading: false,
           autoClose: 5000,
@@ -402,23 +464,45 @@ const EditPostPage = () => {
               </div>
               <div>
                 <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100">
-                  Edit Post
+                  Edit Draft Post
                 </h1>
                 <p className="text-slate-600 dark:text-slate-400">
-                  Update your content and make it shine
+                  Edit your draft content - only draft posts can be modified
                 </p>
               </div>
             </div>
-            <Badge 
-              variant="secondary" 
-              className={`${
-                post.status === 'draft' 
-                  ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' 
-                  : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-              }`}
-            >
-              {post.status === 'draft' ? '📝 Draft' : '✅ Published'}
-            </Badge>
+            <div className="flex items-center space-x-2">
+              <Badge 
+                variant="secondary" 
+                className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200"
+              >
+                📝 Draft Only
+              </Badge>
+              <Badge 
+                variant="outline" 
+                className="bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-200"
+              >
+                Your Post
+              </Badge>
+            </div>
+          </div>
+          
+          {/* Security Notice */}
+          <div className="bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 mb-6">
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0">
+                <Shield className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                  Security Notice
+                </h3>
+                <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">
+                  For security reasons, you can only edit your own draft posts. Published posts cannot be modified. 
+                  This ensures content integrity and prevents unauthorized changes.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -522,7 +606,10 @@ const EditPostPage = () => {
             {/* Publish Actions */}
             <Card className="shadow-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-0">
               <CardHeader>
-                <CardTitle className="text-lg">Update Post</CardTitle>
+                <CardTitle className="text-lg">Update Draft</CardTitle>
+                <CardDescription>
+                  Save your changes or publish your draft
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex items-center space-x-2 text-sm text-slate-600 dark:text-slate-400">
@@ -530,16 +617,10 @@ const EditPostPage = () => {
                   <span>Author: {session.user.name}</span>
                 </div>
                 
-                {post.status === 'published' && (
-                  <div className="flex items-center space-x-2">
-                    <Link href={`/posts/${post.slug}`} target="_blank">
-                      <Button variant="outline" size="sm" className="w-full">
-                        <Eye className="w-4 h-4 mr-2" />
-                        View Live Post
-                      </Button>
-                    </Link>
-                  </div>
-                )}
+                <div className="flex items-center space-x-2 text-sm text-slate-600 dark:text-slate-400">
+                  <FileEdit className="w-4 h-4" />
+                  <span>Status: Draft</span>
+                </div>
                 
                 <Separator />
                 
@@ -555,7 +636,7 @@ const EditPostPage = () => {
                     ) : (
                       <Save className="w-4 h-4 mr-2" />
                     )}
-                    Save as Draft
+                    Save Draft
                   </Button>
                   
                   <Button
@@ -568,8 +649,12 @@ const EditPostPage = () => {
                     ) : (
                       <CheckCircle className="w-4 h-4 mr-2" />
                     )}
-                    {post.status === 'published' ? 'Update & Publish' : 'Publish Post'}
+                    Publish Draft
                   </Button>
+                </div>
+                
+                <div className="text-xs text-slate-500 dark:text-slate-400 pt-2 border-t">
+                  💡 Once published, posts cannot be edited for security reasons
                 </div>
               </CardContent>
             </Card>

@@ -107,7 +107,7 @@ export default function CommentModerationPage() {
     // Check if user has moderation permissions
     const allowedRoles = ['editor', 'admin']
     if (!allowedRoles.includes(session.user.role)) {
-      redirect('/dashboard')
+      redirect('/posts')
       return
     }
   }, [session, status])

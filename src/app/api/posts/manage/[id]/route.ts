@@ -20,6 +20,15 @@ export async function GET(
       );
     }
 
+    // Only allow content creators to access this endpoint
+    const allowedRoles = ['author', 'editor', 'admin'];
+    if (!allowedRoles.includes(session.user.role)) {
+      return NextResponse.json(
+        { error: 'Insufficient permissions' },
+        { status: 403 }
+      );
+    }
+
     const { id } = await params;
     const postId = parseInt(id);
 
@@ -30,12 +39,16 @@ export async function GET(
       );
     }
 
+    // Fetch post with author information
     const postResult = await sql`
       SELECT 
-        id, title, slug, content, excerpt, status, 
-        created_at, updated_at, author_id, reading_time_minutes 
-      FROM posts 
-      WHERE id = ${postId} 
+        p.id, p.title, p.slug, p.content, p.excerpt, p.status, 
+        p.created_at, p.updated_at, p.author_id, p.reading_time_minutes,
+        p.tags,
+        u.name as author_name, u.email as author_email
+      FROM posts p
+      LEFT JOIN users u ON p.author_id = u.id
+      WHERE p.id = ${postId} 
       LIMIT 1
     `;
 
@@ -48,15 +61,23 @@ export async function GET(
 
     const post = postResult[0];
 
-    // Check if user has permission to view this post
-    if (post.status === 'draft') {
-      if (post.author_id !== session.user.id && 
-          !['editor', 'admin'].includes(session.user.role)) {
-        return NextResponse.json(
-          { error: 'Post not found' },
-          { status: 404 }
-        );
-      }
+    // STRICT SECURITY RULE: Only allow access to own drafts
+    // Users can only edit their own draft posts, regardless of role
+    if (String(post.author_id) !== String(session.user.id)) {
+      // console.log('post.author_id', post.author_id);
+      // console.log('session.user.id', session.user.id);
+      return NextResponse.json(
+        { error: 'You can only edit your own posts' },
+        { status: 403 }
+      );
+    }
+
+    // STRICT SECURITY RULE: Only allow editing of draft posts
+    if (post.status !== 'draft') {
+      return NextResponse.json(
+        { error: 'Only draft posts can be edited. Published posts cannot be modified.' },
+        { status: 403 }
+      );
     }
 
     return NextResponse.json({
@@ -71,7 +92,10 @@ export async function GET(
         created_at: post.created_at,
         updated_at: post.updated_at,
         author_id: post.author_id?.toString(),
-        reading_time_minutes: post.reading_time_minutes || 1
+        author_name: post.author_name,
+        author_email: post.author_email,
+        reading_time_minutes: post.reading_time_minutes || 1,
+        tags: post.tags || []
       }
     });
 
@@ -98,6 +122,15 @@ export async function PUT(
       );
     }
 
+    // Only allow content creators to access this endpoint
+    const allowedRoles = ['author', 'editor', 'admin'];
+    if (!allowedRoles.includes(session.user.role)) {
+      return NextResponse.json(
+        { error: 'Insufficient permissions' },
+        { status: 403 }
+      );
+    }
+
     const { id } = await params;
     const postId = parseInt(id);
 
@@ -108,7 +141,7 @@ export async function PUT(
       );
     }
 
-    // Check if post exists and user has permission to edit
+    // Check if post exists and verify ownership/status
     const existingPost = await sql`
       SELECT id, author_id, status FROM posts WHERE id = ${postId} LIMIT 1
     `;
@@ -122,21 +155,44 @@ export async function PUT(
 
     const post = existingPost[0];
 
-    // Check permissions
-    if (post.author_id !== session.user.id && 
-        !['editor', 'admin'].includes(session.user.role)) {
+    // STRICT SECURITY RULE: Only allow users to edit their own posts
+    if (post.author_id !== session.user.id) {
       return NextResponse.json(
         { error: 'You can only edit your own posts' },
         { status: 403 }
       );
     }
 
+    // STRICT SECURITY RULE: Only allow editing of draft posts
+    if (post.status !== 'draft') {
+      return NextResponse.json(
+        { error: 'Only draft posts can be edited. Published posts cannot be modified.' },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
-    const { title, slug, content, excerpt, status, reading_time_minutes } = body;
+    const { title, slug, content, excerpt, status, reading_time_minutes, tags } = body;
 
     if (!title || !content || !excerpt || !slug) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Missing required fields: title, content, excerpt, and slug are required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate title length
+    if (title.length > 255) {
+      return NextResponse.json(
+        { error: 'Title must be less than 255 characters' },
+        { status: 400 }
+      );
+    }
+
+    // Validate status - only allow draft or published
+    if (status && !['draft', 'published'].includes(status)) {
+      return NextResponse.json(
+        { error: 'Status must be either "draft" or "published"' },
         { status: 400 }
       );
     }
@@ -161,12 +217,20 @@ export async function PUT(
         slug = ${slug},
         content = ${content},
         excerpt = ${excerpt},
-        status = ${status || post.status},
+        status = ${status || 'draft'},
         reading_time_minutes = ${reading_time_minutes || 1},
+        tags = ${tags || []},
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${postId}
       RETURNING id, title, slug, status, updated_at
     `;
+
+    if (result.length === 0) {
+      return NextResponse.json(
+        { error: 'Failed to update post' },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
@@ -176,6 +240,17 @@ export async function PUT(
 
   } catch (error) {
     console.error('Error updating post:', error);
+    
+    // Handle specific database errors
+    if (error instanceof Error) {
+      if (error.message.includes('duplicate key')) {
+        return NextResponse.json(
+          { error: 'A post with this slug already exists' },
+          { status: 409 }
+        );
+      }
+    }
+
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -197,6 +272,15 @@ export async function DELETE(
       );
     }
 
+    // Only allow content creators to access this endpoint
+    const allowedRoles = ['author', 'editor', 'admin'];
+    if (!allowedRoles.includes(session.user.role)) {
+      return NextResponse.json(
+        { error: 'Insufficient permissions' },
+        { status: 403 }
+      );
+    }
+
     const { id } = await params;
     const postId = parseInt(id);
 
@@ -207,9 +291,9 @@ export async function DELETE(
       );
     }
 
-    // Check if post exists and user has permission to delete
+    // Check if post exists and verify ownership
     const existingPost = await sql`
-      SELECT id, author_id FROM posts WHERE id = ${postId} LIMIT 1
+      SELECT id, author_id, status FROM posts WHERE id = ${postId} LIMIT 1
     `;
 
     if (existingPost.length === 0) {
@@ -221,17 +305,21 @@ export async function DELETE(
 
     const post = existingPost[0];
 
-    // Check permissions
-    if (post.author_id !== session.user.id && 
-        !['editor', 'admin'].includes(session.user.role)) {
+    // STRICT SECURITY RULE: Only allow users to delete their own drafts
+    if (post.author_id !== session.user.id) {
       return NextResponse.json(
         { error: 'You can only delete your own posts' },
         { status: 403 }
       );
     }
 
-    // Delete associated comments first
-    await sql`DELETE FROM comments WHERE post_id = ${postId}`;
+    // STRICT SECURITY RULE: Only allow deletion of draft posts
+    if (post.status !== 'draft') {
+      return NextResponse.json(
+        { error: 'Only draft posts can be deleted. Published posts cannot be removed.' },
+        { status: 403 }
+      );
+    }
 
     // Delete the post
     await sql`DELETE FROM posts WHERE id = ${postId}`;

@@ -9,9 +9,14 @@ import 'react-toastify/dist/ReactToastify.css'
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "BlogCMS - RBAC Demo",
+  title: "Zenith - Blog CMS",
   description: "A comprehensive Role-Based Access Control blog management system",
-    generator: 'v0.dev'
+  icons: {
+    icon: '/zenith-logo.svg',
+    shortcut: '/zenith-logo.svg',
+    apple: '/zenith-logo.svg',
+  },
+    // generator: 'v0.dev'
 }
 
 export default function RootLayout({

@@ -147,11 +147,12 @@ export default function SignIn() {
 
   /**
    * Handle demo account quick login
-   * Fills the email field with a demo account email
+   * Fills the email and password fields with demo account credentials
    * @param demoEmail - The demo account email to use
    */
   const handleDemoLogin = (demoEmail: string) => {
     setEmail(demoEmail)
+    setPassword("Abcd1234") // Set the demo password
     setError("") // Clear any existing errors
   }
 
@@ -191,7 +192,7 @@ export default function SignIn() {
                 </div>
               </div>
 
-              {/* Password Input (for demo purposes, any password works) */}
+              {/* Password Input */}
             <div className="space-y-2">
                 <Label htmlFor="password" className="text-sm font-medium">
                   Password
@@ -199,14 +200,14 @@ export default function SignIn() {
                 <Input
                   id="password"
                   type="password"
-                  placeholder="Enter any password (demo)"
+                  placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isLoading}
                   autoComplete="current-password"
                 />
                 <p className="text-xs text-gray-500">
-                  For demo purposes, any password will work
+                  Demo accounts password: Abcd1234
                 </p>
             </div>
 
@@ -287,7 +288,7 @@ export default function SignIn() {
           <CardHeader>
             <CardTitle className="text-lg">Demo Accounts</CardTitle>
             <CardDescription>
-              Click on any account below to quickly fill in the email field
+              Click on any account below to auto-fill email and password (Abcd1234)
             </CardDescription>
           </CardHeader>
           
@@ -318,7 +319,7 @@ export default function SignIn() {
 
         {/* Additional Info */}
         <div className="text-center text-xs text-gray-500">
-          This is a demo application. All accounts use the same password.
+          This is a demo application. All demo accounts use password: Abcd1234
         </div>
       </div>
     </div>

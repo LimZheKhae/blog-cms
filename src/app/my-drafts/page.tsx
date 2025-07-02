@@ -57,7 +57,7 @@ export default function MyDraftsPage() {
     // Only content creators can access drafts
     const allowedRoles = ["author", "editor", "admin"]
     if (!allowedRoles.includes(session.user.role)) {
-      redirect("/dashboard")
+      redirect("/posts")
       return
     }
   }, [session, status])

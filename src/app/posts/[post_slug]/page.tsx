@@ -343,9 +343,9 @@ export default function PostPage({ params }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white">
+    <div className="min-h-screen bg-white">
       {/* Reading Progress Bar */}
-      <div className="fixed top-0 left-0 w-full h-1 bg-gray-200 z-50">
+      <div className="fixed top-16 left-0 w-full h-1 bg-gray-200 z-50">
         <div 
           className="h-full bg-gradient-to-r from-blue-600 to-purple-600 transition-all duration-300"
           style={{ width: `${readingProgress}%` }}

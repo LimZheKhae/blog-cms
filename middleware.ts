@@ -6,13 +6,14 @@
 
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+import { getToken } from "next-auth/jwt"
 
 /**
  * Main middleware function that protects routes based on authentication and roles
  * @param request - The incoming request
  * @returns NextResponse
  */
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   // Extract pathname from the request URL for route matching
   const { pathname } = request.nextUrl
 
@@ -28,13 +29,40 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
+  // Get the token to check authentication and role
+  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
+
+  // If no token, redirect to signin
+  if (!token) {
+    const signInUrl = new URL("/auth/signin", request.url)
+    signInUrl.searchParams.set("callbackUrl", request.url)
+    return NextResponse.redirect(signInUrl)
+  }
+
   /**
-   * For protected routes, redirect to signin page
-   * The actual session check will be done on the client side
+   * ROLE-BASED ACCESS CONTROL
+   * Redirect viewers to posts page if they try to access restricted areas
    */
-  const signInUrl = new URL("/auth/signin", request.url)
-  signInUrl.searchParams.set("callbackUrl", request.url)
-  return NextResponse.redirect(signInUrl)
+  const userRole = token.role as string
+  const restrictedForViewers = [
+    "/dashboard",
+    "/posts/create",
+    "/posts/edit",
+    "/my-drafts",
+    "/comment-moderation",
+    "/user-management"
+  ]
+
+  // Check if viewer is trying to access restricted areas
+  if (userRole === "viewer") {
+    const isRestrictedRoute = restrictedForViewers.some(route => pathname.startsWith(route))
+    if (isRestrictedRoute) {
+      return NextResponse.redirect(new URL("/posts", request.url))
+    }
+  }
+
+  // Allow access for authenticated users with proper permissions
+  return NextResponse.next()
 }
 
 /**

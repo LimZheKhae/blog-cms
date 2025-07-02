@@ -27,7 +27,8 @@ import {
   Grid3X3,
   List,
   ArrowRight,
-  Sparkles
+  Sparkles,
+  Heart
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { LoadingScreen } from "@/components/ui/loading-screen"
@@ -46,6 +47,7 @@ interface Post {
   author_avatar?: string
   views_count?: number
   comments_count?: number
+  likes_count?: number
   reading_time?: number
 }
 
@@ -63,7 +65,7 @@ export default function PostsPage() {
       const params = new URLSearchParams({
         page: '1',
         limit: '20',
-        status: statusFilter === 'all' ? '' : statusFilter,
+        status: statusFilter,
         search: searchTerm,
         sortBy: sortBy
       });
@@ -118,7 +120,7 @@ export default function PostsPage() {
     .filter(post => {
       const matchesSearch = post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            post.excerpt.toLowerCase().includes(searchTerm.toLowerCase())
-      const matchesStatus = statusFilter === "all" || post.status === statusFilter
+      const matchesStatus = post.status === statusFilter
       return matchesSearch && matchesStatus
     })
     .sort((a, b) => {
@@ -160,17 +162,7 @@ export default function PostsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
-      {/* Back to Main Button */}
-      <div className="fixed top-4 left-4 z-50">
-        <Link href="/dashboard">
-          <Button variant="outline" size="sm" className="bg-white/80 backdrop-blur-sm hover:bg-white">
-            <ArrowRight className="h-4 w-4 mr-2 rotate-180" />
-            Back to Main
-          </Button>
-        </Link>
-      </div>
-
+    <div className="min-h-screen">
       {/* Hero Section */}
       <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600">
         <div className="absolute inset-0 bg-black/20"></div>
@@ -219,21 +211,6 @@ export default function PostsPage() {
                 </Link>
               )}
               
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-32 bg-white/70 backdrop-blur-sm">
-                  <Filter className="h-4 w-4 mr-2" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="published">Published</SelectItem>
-                  {/* Only show draft filter to authors/editors/admins */}
-                  {session?.user?.role && ['author', 'editor', 'admin'].includes(session.user.role) && (
-                    <SelectItem value="draft">My Drafts</SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-
               <Select value={sortBy} onValueChange={setSortBy}>
                 <SelectTrigger className="w-36 bg-white/70 backdrop-blur-sm">
                   <SelectValue />
@@ -298,15 +275,6 @@ export default function PostsPage() {
                 {viewMode === "grid" ? (
                   <>
                     <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <Badge variant={getStatusBadgeVariant(post.status)}>
-                          {post.status === 'draft' ? '📝 Draft' : '✅ Published'}
-                        </Badge>
-                        <div className="flex items-center text-xs text-gray-500">
-                          <Clock className="h-3 w-3 mr-1" />
-                          {post.reading_time} min read
-                        </div>
-                      </div>
                       <CardTitle className="text-xl group-hover:text-blue-600 transition-colors">
                         {post.title}
                       </CardTitle>
@@ -340,6 +308,14 @@ export default function PostsPage() {
                             <MessageSquare className="h-3 w-3 mr-1" />
                             {post.comments_count}
                           </div>
+                          <div className="flex items-center">
+                            <Heart className="h-3 w-3 mr-1 text-red-500 fill-red-500" />
+                            {post.likes_count || 0}
+                          </div>
+                        </div>
+                        <div className="flex items-center">
+                          <Clock className="h-3 w-3 mr-1" />
+                          {post.reading_time} min read
                         </div>
                       </div>
 
@@ -358,10 +334,6 @@ export default function PostsPage() {
                         <Badge variant={getStatusBadgeVariant(post.status)}>
                           {post.status === 'draft' ? '📝 Draft' : '✅ Published'}
                         </Badge>
-                        <div className="flex items-center text-xs text-gray-500">
-                          <Clock className="h-3 w-3 mr-1" />
-                          {post.reading_time} min read
-                        </div>
                       </div>
                       <h3 className="text-xl font-semibold mb-2 group-hover:text-blue-600 transition-colors">
                         {post.title}
@@ -379,14 +351,24 @@ export default function PostsPage() {
                           <span className="text-sm text-gray-400">•</span>
                           <span className="text-sm text-gray-500">{formatDate(post.created_at)}</span>
                         </div>
-                        <div className="flex items-center space-x-3 text-xs text-gray-500">
-                          <div className="flex items-center">
-                            <Eye className="h-3 w-3 mr-1" />
-                            {post.views_count}
+                        <div className="flex items-center justify-between text-xs text-gray-500">
+                          <div className="flex items-center space-x-3">
+                            <div className="flex items-center">
+                              <Eye className="h-3 w-3 mr-1" />
+                              {post.views_count}
+                            </div>
+                            <div className="flex items-center">
+                              <MessageSquare className="h-3 w-3 mr-1" />
+                              {post.comments_count}
+                            </div>
+                            <div className="flex items-center">
+                              <Heart className="h-3 w-3 mr-1 text-red-500 fill-red-500" />
+                              {post.likes_count || 0}
+                            </div>
                           </div>
                           <div className="flex items-center">
-                            <MessageSquare className="h-3 w-3 mr-1" />
-                            {post.comments_count}
+                            <Clock className="h-3 w-3 mr-1" />
+                            {post.reading_time} min read
                           </div>
                         </div>
                       </div>

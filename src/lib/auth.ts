@@ -218,8 +218,8 @@ export const authOptions: AuthOptions = {
      * @returns Modified token
      */
     async jwt({ token, user }: any) {
-      console.log('JWT callback - user:', user)
-      console.log('JWT callback - token before:', token)
+      // console.log('JWT callback - user:', user)
+      // console.log('JWT callback - token before:', token)
       
       // If user is available (on signin), add custom fields to token
       if (user) {

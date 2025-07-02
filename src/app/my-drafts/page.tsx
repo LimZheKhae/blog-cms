@@ -22,6 +22,7 @@ import {
 import { cn } from "@/lib/utils"
 import { LoadingScreen } from "@/components/ui/loading-screen"
 import { toast } from "react-toastify"
+import { Navbar } from "@/components/layout/navbar"
 
 interface DraftPost {
   id: string
@@ -150,16 +151,8 @@ export default function MyDraftsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
-      {/* Back to Dashboard Button */}
-      <div className="fixed top-4 left-4 z-50">
-        <Link href="/dashboard">
-          <Button variant="outline" size="sm" className="bg-white/80 backdrop-blur-sm hover:bg-white">
-            <ArrowRight className="h-4 w-4 mr-2 rotate-180" />
-            Back to Dashboard
-          </Button>
-        </Link>
-      </div>
-
+      <Navbar />
+      
       {/* Hero Section */}
       <div className="relative overflow-hidden bg-gradient-to-r from-orange-500 via-red-500 to-pink-500">
         <div className="absolute inset-0 bg-black/20"></div>

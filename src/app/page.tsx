@@ -90,7 +90,12 @@ export default function Home() {
    */
   useEffect(() => {
     if (status === "authenticated" && session) {
-      router.push("/dashboard")
+      // Redirect viewers to posts page, others to dashboard
+      if (session.user?.role === "viewer") {
+        router.push("/posts")
+      } else {
+        router.push("/dashboard")
+      }
     }
   }, [session, status, router])
 

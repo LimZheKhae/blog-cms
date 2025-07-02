@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
       )
       RETURNING id, title, slug, content, excerpt, tags, status, author_id, reading_time_minutes, views_count, likes_count, created_at, updated_at
     `;
-    console.log(result);
+    // console.log(result);
     if (result.length === 0) {
       return NextResponse.json(
         { error: 'Failed to create post' },
@@ -274,7 +274,7 @@ export async function GET(request: NextRequest) {
         }
       }
     }
-    console.log(posts);
+    // console.log(posts);
 
     // Get comments count for each post
     const postsWithComments = await Promise.all(

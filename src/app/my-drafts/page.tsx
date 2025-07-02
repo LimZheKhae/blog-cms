@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils"
 import { LoadingScreen } from "@/components/ui/loading-screen"
 import { toast } from "react-toastify"
 import { Navbar } from "@/components/layout/navbar"
+import { hasPermission, PERMISSIONS } from "@/lib/permissions"
 
 interface DraftPost {
   id: string
@@ -54,9 +55,8 @@ export default function MyDraftsPage() {
       return
     }
 
-    // Only content creators can access drafts
-    const allowedRoles = ["author", "editor", "admin"]
-    if (!allowedRoles.includes(session.user.role)) {
+    // Only users with draft reading permissions can access drafts
+    if (!hasPermission(session.user.role, PERMISSIONS.READ_DRAFTS)) {
       redirect("/posts")
       return
     }
@@ -145,7 +145,7 @@ export default function MyDraftsPage() {
     return <LoadingScreen title="Loading Drafts" subtitle="Fetching your draft posts..." />
   }
 
-  if (!session || !["author", "editor", "admin"].includes(session.user.role)) {
+  if (!session || !hasPermission(session.user.role, PERMISSIONS.READ_DRAFTS)) {
     return null
   }
 

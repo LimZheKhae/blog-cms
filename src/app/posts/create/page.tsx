@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { toast } from 'react-toastify';
+import { hasPermission, PERMISSIONS } from '@/lib/permissions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -61,9 +62,8 @@ const CreatePostPage = () => {
       return;
     }
 
-    // Check if user has permission to create posts (author, editor, admin)
-    const allowedRoles = ['author', 'editor', 'admin'];
-    if (!allowedRoles.includes(session.user.role)) {
+    // Check if user has permission to create posts
+    if (!hasPermission(session.user.role, PERMISSIONS.CREATE_POST)) {
       toast.error('You don\'t have permission to create posts!');
       router.push('/posts');
       return;

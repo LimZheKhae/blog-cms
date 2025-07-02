@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { neon } from '@neondatabase/serverless';
 import { authOptions } from '@/lib/auth';
+import { hasPermission, PERMISSIONS } from '@/lib/permissions';
 import type { Session } from 'next-auth';
 
 // Initialize database connection
@@ -27,17 +28,13 @@ export async function DELETE(
       );
     }
 
-    // Check if user has permission to delete comments
-    const allowedRoles = ['editor', 'admin'];
-    const userRole = session.user.role;
-    
-    console.log('DELETE Comment - Role check:', {
-      userRole,
-      allowedRoles,
-      hasPermission: allowedRoles.includes(userRole)
-    });
-    
-    if (!allowedRoles.includes(userRole)) {
+    // Check if user has permission to delete comments using RBAC
+    if (!hasPermission(session.user.role, PERMISSIONS.DELETE_COMMENTS)) {
+      console.log('DELETE Comment - Permission denied:', {
+        userRole: session.user.role,
+        requiredPermission: PERMISSIONS.DELETE_COMMENTS
+      });
+      
       return NextResponse.json(
         { error: 'Insufficient permissions to delete comments' },
         { status: 403 }
@@ -166,21 +163,16 @@ export async function PATCH(
       });
 
     } else if (action === 'hide' || action === 'unhide') {
-      // Only editors/admins can hide/unhide comments
-      const allowedRoles = ['editor', 'admin'];
-      const userRole = session.user.role;
-      
-      console.log('PATCH Comment - Hide/Unhide permission check:', {
-        userRole,
-        allowedRoles,
-        hasPermission: allowedRoles.includes(userRole),
-        action
-      });
-      
-      if (!allowedRoles.includes(userRole)) {
-        console.log('PATCH Comment - Permission denied for role:', userRole);
+      // Only users with moderation permissions can hide/unhide comments
+      if (!hasPermission(session.user.role, PERMISSIONS.MODERATE_COMMENTS)) {
+        console.log('PATCH Comment - Permission denied:', {
+          userRole: session.user.role,
+          requiredPermission: PERMISSIONS.MODERATE_COMMENTS,
+          action
+        });
+        
         return NextResponse.json(
-          { error: `Insufficient permissions to ${action} comments. Required: editor or admin, but got: ${userRole}` },
+          { error: `Insufficient permissions to ${action} comments. Required: comment moderation permission` },
           { status: 403 }
         );
       }

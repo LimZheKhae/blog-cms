@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { toast } from 'react-toastify';
+import { hasPermission, PERMISSIONS } from '@/lib/permissions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -87,9 +88,8 @@ const EditPostPage = () => {
       return;
     }
 
-    // Only content creators can edit posts
-    const allowedRoles = ['author', 'editor', 'admin'];
-    if (!allowedRoles.includes(session.user.role)) {
+    // Only users with edit permission can edit posts
+    if (!hasPermission(session.user.role, PERMISSIONS.EDIT_POSTS)) {
       toast.error('❌ You do not have permission to edit posts!', {
         className: '!bg-gradient-to-r !from-red-50 !to-rose-50 !text-red-800 !border-red-200',
         progressClassName: '!bg-gradient-to-r !from-red-400 !to-rose-500',
@@ -428,7 +428,7 @@ const EditPostPage = () => {
     return <LoadingScreen title="Loading Post" subtitle="Fetching post data..." />;
   }
 
-  if (!session || !['author', 'editor', 'admin'].includes(session.user.role)) {
+  if (!session || !hasPermission(session.user.role, PERMISSIONS.EDIT_POSTS)) {
     return null;
   }
 

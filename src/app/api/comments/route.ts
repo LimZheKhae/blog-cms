@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { neon } from '@neondatabase/serverless';
 import authConfig from '@/lib/auth';
+import { hasPermission, PERMISSIONS } from '@/lib/permissions';
 import type { Session } from 'next-auth';
 
 // Initialize database connection
@@ -104,8 +105,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if user has moderation permissions
-    const allowedRoles = ['editor', 'admin'];
-    if (!allowedRoles.includes(session.user.role)) {
+    if (!hasPermission(session.user.role, PERMISSIONS.MODERATE_COMMENTS)) {
+      console.error(`Access denied for user ${session.user.id} with role ${session.user.role} - insufficient permissions for moderating comments`);
       return NextResponse.json(
         { error: 'Insufficient permissions' },
         { status: 403 }

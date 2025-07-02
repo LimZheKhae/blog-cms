@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { neon } from '@neondatabase/serverless';
 import { authOptions } from '@/lib/auth';
+import { hasPermission, PERMISSIONS } from '@/lib/permissions';
 import type { Session } from 'next-auth';
 
 const sql = neon(process.env.DATABASE_URL!);
@@ -20,9 +21,8 @@ export async function GET(
       );
     }
 
-    // Only allow content creators to access this endpoint
-    const allowedRoles = ['author', 'editor', 'admin'];
-    if (!allowedRoles.includes(session.user.role)) {
+    // Only allow content creators to access this endpoint using RBAC
+    if (!hasPermission(session.user.role, PERMISSIONS.CREATE_POST)) {
       return NextResponse.json(
         { error: 'Insufficient permissions' },
         { status: 403 }
@@ -123,8 +123,7 @@ export async function PUT(
     }
 
     // Only allow content creators to access this endpoint
-    const allowedRoles = ['author', 'editor', 'admin'];
-    if (!allowedRoles.includes(session.user.role)) {
+    if (!hasPermission(session.user.role, PERMISSIONS.CREATE_POST)) {
       return NextResponse.json(
         { error: 'Insufficient permissions' },
         { status: 403 }
@@ -273,8 +272,7 @@ export async function DELETE(
     }
 
     // Only allow content creators to access this endpoint
-    const allowedRoles = ['author', 'editor', 'admin'];
-    if (!allowedRoles.includes(session.user.role)) {
+    if (!hasPermission(session.user.role, PERMISSIONS.CREATE_POST)) {
       return NextResponse.json(
         { error: 'Insufficient permissions' },
         { status: 403 }

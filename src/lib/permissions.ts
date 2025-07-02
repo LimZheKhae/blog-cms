@@ -291,3 +291,24 @@ export function getRoleDescription(role: UserRole): string {
 export function getRoleLevel(role: UserRole): number {
   return ROLE_HIERARCHY[role]
 }
+
+/**
+ * Get all valid user roles
+ * Useful for validation in forms and API endpoints
+ * 
+ * @returns Array of all valid user roles
+ */
+export function getValidRoles(): UserRole[] {
+  return Object.keys(ROLE_HIERARCHY) as UserRole[]
+}
+
+/**
+ * Check if a string is a valid user role
+ * Useful for validating user input
+ * 
+ * @param role - The role string to validate
+ * @returns boolean - True if the role is valid
+ */
+export function isValidRole(role: string): role is UserRole {
+  return getValidRoles().includes(role as UserRole)
+}

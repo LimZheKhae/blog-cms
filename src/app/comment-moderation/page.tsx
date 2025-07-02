@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { toast } from 'react-toastify'
+import { hasPermission, PERMISSIONS } from "@/lib/permissions"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -105,8 +106,7 @@ export default function CommentModerationPage() {
     }
 
     // Check if user has moderation permissions
-    const allowedRoles = ['editor', 'admin']
-    if (!allowedRoles.includes(session.user.role)) {
+    if (!hasPermission(session.user.role, PERMISSIONS.MODERATE_COMMENTS)) {
       redirect('/posts')
       return
     }
@@ -132,7 +132,7 @@ export default function CommentModerationPage() {
   }
 
   useEffect(() => {
-    if (session?.user && ['editor', 'admin'].includes(session.user.role)) {
+    if (session?.user && hasPermission(session.user.role, PERMISSIONS.MODERATE_COMMENTS)) {
       fetchModerationData()
     }
   }, [session, activeFilter])
@@ -268,7 +268,7 @@ export default function CommentModerationPage() {
     return <LoadingScreen title="Loading Moderation" subtitle="Preparing moderation dashboard..." />
   }
 
-  if (!session || !['editor', 'admin'].includes(session.user.role)) {
+  if (!session || !hasPermission(session.user.role, PERMISSIONS.MODERATE_COMMENTS)) {
     toast.error('You are not authorized to access this page')
     redirect('/posts')
     return null

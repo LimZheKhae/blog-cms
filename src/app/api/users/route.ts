@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { neon } from '@neondatabase/serverless'
 import { authOptions } from '@/lib/auth'
-import { hasPermission, PERMISSIONS } from '@/lib/permissions'
+import { hasPermission, PERMISSIONS, getValidRoles } from '@/lib/permissions'
+import type { Session } from 'next-auth'
 
 const sql = neon(process.env.DATABASE_URL!)
 
@@ -316,8 +317,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate role
-    const validRoles = ['viewer', 'author', 'editor', 'admin']
-    if (!validRoles.includes(role)) {
+    const validRoles = getValidRoles()
+    if (!validRoles.includes(role as any)) {
       return NextResponse.json(
         { error: 'Invalid role' },
         { status: 400 }

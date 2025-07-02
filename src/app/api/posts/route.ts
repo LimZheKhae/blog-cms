@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { neon } from '@neondatabase/serverless';
 import { authOptions } from '@/lib/auth';
+import { hasPermission, PERMISSIONS } from '@/lib/permissions';
 import type { Session } from 'next-auth';
 
 // Initialize database connection
@@ -24,9 +25,8 @@ export async function POST(request: NextRequest) {
     console.log('Posts API - User object:', JSON.stringify(session.user, null, 2))
     console.log('Posts API - User role:', session.user.role);
 
-    // Check if user has permission to create posts
-    const allowedRoles = ['author', 'editor', 'admin'];
-    if (!allowedRoles.includes(session.user.role)) {
+    // Check if user has permission to create posts using RBAC
+    if (!hasPermission(session.user.role, PERMISSIONS.CREATE_POST)) {
       return NextResponse.json(
         { error: 'Insufficient permissions to create posts' },
         { status: 403 }
@@ -199,8 +199,11 @@ export async function GET(request: NextRequest) {
     } else {
       // For main posts listing - implement proper access control
       if (status === 'draft') {
-        // Only editors/admins can see all drafts, authors see only their own
-        if (['editor', 'admin'].includes(session.user.role)) {
+        // Check if user can view all drafts (editors/admins) or only their own (authors)
+        const canViewAllDrafts = hasPermission(session.user.role, PERMISSIONS.READ_DRAFTS) && 
+                                 hasPermission(session.user.role, PERMISSIONS.EDIT_POSTS);
+        
+        if (canViewAllDrafts) {
           posts = await sql`
             SELECT 
               p.id, p.title, p.slug, p.content, p.excerpt, p.tags, p.status, 
@@ -244,7 +247,10 @@ export async function GET(request: NextRequest) {
         `;
       } else {
         // "all" filter - show published posts + user's own drafts
-        if (['editor', 'admin'].includes(session.user.role)) {
+        const canViewAllDrafts = hasPermission(session.user.role, PERMISSIONS.READ_DRAFTS) && 
+                                 hasPermission(session.user.role, PERMISSIONS.EDIT_POSTS);
+        
+        if (canViewAllDrafts) {
           // Editors/admins see everything
           posts = await sql`
             SELECT 

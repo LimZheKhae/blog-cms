@@ -57,7 +57,7 @@ export function Navbar() {
   // Early return if no session
   if (!session?.user) {
     return (
-      <nav className="sticky top-0 z-50 border-b bg-white/80 backdrop-blur-lg shadow-sm">
+      <nav className="sticky top-0 z-50 border-b border-white/20 bg-gradient-to-r from-blue-50/95 via-white/95 to-purple-50/95 backdrop-blur-xl shadow-lg shadow-blue-500/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center space-x-2">
@@ -76,7 +76,7 @@ export function Navbar() {
   }
 
   return (
-    <nav className="sticky top-0 z-50 border-b bg-white/80 backdrop-blur-lg shadow-sm">
+    <nav className="sticky top-0 z-50 border-b border-white/20 bg-gradient-to-r from-blue-50/95 via-white/95 to-purple-50/95 dark:from-slate-900/95 dark:via-slate-800/95 dark:to-indigo-900/95 backdrop-blur-xl shadow-lg shadow-blue-500/5 dark:shadow-slate-900/20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           {/* Left side - Logo and Navigation */}
@@ -103,8 +103,8 @@ export function Navbar() {
                 className={cn(
                   "flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200",
                   pathname === "/posts" || pathname.startsWith("/posts/")
-                    ? "bg-blue-100 text-blue-700 shadow-sm"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                    ? "bg-blue-100/80 text-blue-700 shadow-sm backdrop-blur-sm border border-blue-200/50"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-white/60 hover:backdrop-blur-sm hover:border hover:border-gray-200/50"
                 )}
               >
                 <FileText className="h-4 w-4 mr-2" />
@@ -118,8 +118,8 @@ export function Navbar() {
                   className={cn(
                     "flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200",
                     pathname === "/dashboard"
-                      ? "bg-blue-100 text-blue-700 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                      ? "bg-blue-100/80 text-blue-700 shadow-sm backdrop-blur-sm border border-blue-200/50"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-white/60 hover:backdrop-blur-sm hover:border hover:border-gray-200/50"
                   )}
                 >
                   <BarChart3 className="h-4 w-4 mr-2" />

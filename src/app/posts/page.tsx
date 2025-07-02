@@ -9,6 +9,7 @@ import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
 import { redirect } from "next/navigation"
+import { hasPermission, PERMISSIONS } from "@/lib/permissions"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -202,7 +203,7 @@ export default function PostsPage() {
             {/* Filters */}
             <div className="flex items-center gap-3">
               {/* Create New Post Button */}
-              {session?.user?.role && ['author', 'editor', 'admin'].includes(session.user.role) && (
+              {session?.user?.role && hasPermission(session.user.role, PERMISSIONS.CREATE_POST) && (
                 <Link href="/posts/create">
                   <Button className="bg-blue-600 hover:bg-blue-700">
                     <Sparkles className="h-4 w-4 mr-2" />

@@ -102,6 +102,22 @@ interface Comment {
   is_liked_by_user?: boolean
 }
 
+interface RelatedPost {
+  id: string
+  title: string
+  slug: string
+  excerpt: string
+  tags: string[]
+  created_at: string
+  author_name: string
+  author_avatar?: string
+  views_count: number
+  comments_count: number
+  likes_count: number
+  reading_time: number
+  similarity_score: number
+}
+
 interface Props {
   params: Promise<{
     post_slug: string
@@ -113,7 +129,9 @@ export default function PostPage({ params }: Props) {
   const { data: session } = useSession()
   const [post, setPost] = useState<Post | null>(null)
   const [comments, setComments] = useState<Comment[]>([])
+  const [relatedPosts, setRelatedPosts] = useState<RelatedPost[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingRelated, setLoadingRelated] = useState(false)
   const [isLiked, setIsLiked] = useState(false)
   const [isLikingInProgress, setIsLikingInProgress] = useState(false)
   const [isBookmarked, setIsBookmarked] = useState(false)
@@ -143,6 +161,13 @@ export default function PostPage({ params }: Props) {
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [resolvedParams.post_slug])
+
+  // Fetch related posts after the main post is loaded
+  useEffect(() => {
+    if (post && session?.user) {
+      fetchRelatedPosts()
+    }
+  }, [post, session])
 
   const fetchPostAndComments = async () => {
     try {
@@ -179,6 +204,29 @@ export default function PostPage({ params }: Props) {
       notFound();
     } finally {
       setLoading(false);
+    }
+  }
+
+  const fetchRelatedPosts = async () => {
+    if (!post || !session?.user) return;
+    
+    setLoadingRelated(true);
+    
+    try {
+      const response = await fetch(`/api/posts/${resolvedParams.post_slug}/related?limit=3`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.relatedPosts) {
+          setRelatedPosts(data.relatedPosts);
+        }
+      } else {
+        console.log('No related posts found or API error');
+      }
+    } catch (error) {
+      console.error('Error fetching related posts:', error);
+    } finally {
+      setLoadingRelated(false);
     }
   }
 
@@ -901,19 +949,19 @@ export default function PostPage({ params }: Props) {
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Views</span>
-                    <span className="font-medium">{post.views_count.toLocaleString()}</span>
+                    <span className="font-medium text-sm">{post.views_count.toLocaleString()}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Likes</span>
-                    <span className="font-medium">{post.likes_count}</span>
+                    <span className="font-medium text-sm">{post.likes_count}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Comments</span>
-                    <span className="font-medium">{comments.length}</span>
+                    <span className="font-medium text-sm">{comments.length}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Reading Time</span>
-                    <span className="font-medium">{post.reading_time} min</span>
+                    <span className="font-medium text-sm">{post.reading_time} min</span>
                   </div>
                 </CardContent>
               </Card>
@@ -927,14 +975,48 @@ export default function PostPage({ params }: Props) {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="border-b border-gray-200 last:border-0 pb-3 last:pb-0">
-                      <h4 className="font-medium text-sm mb-1 hover:text-blue-600 cursor-pointer">
-                        Building Scalable React Applications
-                      </h4>
-                      <p className="text-xs text-gray-500">12 min read • 856 views</p>
+                  {loadingRelated ? (
+                    <div className="space-y-3">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="border-b border-gray-200 last:border-0 pb-3 last:pb-0">
+                          <div className="h-4 bg-gray-200 rounded animate-pulse mb-2"></div>
+                          <div className="h-3 bg-gray-100 rounded w-2/3 animate-pulse"></div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  ) : relatedPosts.length > 0 ? (
+                    relatedPosts.map((relatedPost) => (
+                      <div key={relatedPost.id} className="border-b border-gray-200 last:border-0 pb-3 last:pb-0">
+                        <Link href={`/posts/${relatedPost.slug}`}>
+                          <h4 className="font-medium text-sm mb-1 hover:text-blue-600 cursor-pointer transition-colors duration-200 line-clamp-2">
+                            {relatedPost.title}
+                          </h4>
+                        </Link>
+                        <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                          <span>{relatedPost.reading_time} min read</span>
+                          <span>{relatedPost.views_count} views</span>
+                        </div>
+                        {relatedPost.similarity_score > 0 && (
+                          <div className="flex items-center space-x-1 text-xs">
+                            <div className="flex flex-wrap gap-1">
+                              {relatedPost.tags.slice(0, 2).map((tag) => (
+                                <Badge key={tag} variant="outline" className="text-xs px-1 py-0 h-4">
+                                  #{tag}
+                                </Badge>
+                              ))}
+                              {relatedPost.tags.length > 2 && (
+                                <span className="text-gray-400">+{relatedPost.tags.length - 2}</span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-4">
+                      <p className="text-sm text-gray-500">No related articles found</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 

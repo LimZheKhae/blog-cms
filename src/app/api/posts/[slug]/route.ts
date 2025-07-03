@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { neon } from '@neondatabase/serverless';
-import authConfig from '@/lib/auth';
+import { authOptions } from '@/lib/auth';
 import type { Session } from 'next-auth';
 
 // Initialize database connection
@@ -9,10 +9,19 @@ const sql = neon(process.env.DATABASE_URL!);
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const session = await getServerSession(authConfig) as Session | null;
+    const session = await getServerSession(authOptions) as Session | null;
+    
+    // console.log('=== SESSION DEBUG [SLUG] ===');
+    // console.log('Full session:', JSON.stringify(session, null, 2));
+    // console.log('session.user:', session?.user);
+    // console.log('session.user.id:', session?.user?.id);
+    // console.log('session.user.email:', session?.user?.email);
+    // console.log('session.user.name:', session?.user?.name);
+    // console.log('session.user.role:', session?.user?.role);
+    // console.log('=== END SESSION DEBUG [SLUG] ===');
     
     if (!session?.user) {
       return NextResponse.json(
@@ -21,7 +30,9 @@ export async function GET(
       );
     }
 
-    const slug = params.slug;
+    const userId = session.user.id;
+    console.log('Extracted userId:', userId);
+    const { slug } = await params;
 
     // Get the post with author information using slug
     const posts = await sql`
@@ -46,6 +57,15 @@ export async function GET(
 
     const post = posts[0];
 
+    // Check if current user has liked this post
+    const userLike = await sql`
+      SELECT id FROM post_likes 
+      WHERE post_id = ${post.id} AND user_id = ${userId}
+      LIMIT 1
+    `;
+
+    const isLikedByUser = userLike.length > 0;
+
     // Get comments for the post (excluding hidden ones)
     const comments = await sql`
       SELECT 
@@ -67,7 +87,7 @@ export async function GET(
       SELECT id FROM post_views 
       WHERE post_id = ${post.id} 
       AND (
-        (user_id = ${session.user.id}) 
+        (user_id = ${userId}) 
         OR (ip_address = ${ip})
       )
       AND viewed_at > NOW() - INTERVAL '1 hour'
@@ -80,7 +100,7 @@ export async function GET(
       // Insert new view record
       await sql`
         INSERT INTO post_views (post_id, user_id, ip_address, user_agent)
-        VALUES (${post.id}, ${session.user.id}, ${ip}, ${userAgent})
+        VALUES (${post.id}, ${userId}, ${ip}, ${userAgent})
         ON CONFLICT (post_id, user_id, ip_address) DO NOTHING
       `;
 
@@ -113,7 +133,8 @@ export async function GET(
       likes_count: post.likes_count || 0,
       reading_time: post.reading_time_minutes || 1,
       tags: post.tags || [],
-      category: "Technology" // Default category
+      category: "Technology", // Default category
+      is_liked_by_user: isLikedByUser
     };
 
     const formattedComments = comments.map((comment: any) => ({
@@ -131,7 +152,8 @@ export async function GET(
     return NextResponse.json({
       success: true,
       post: formattedPost,
-      comments: formattedComments
+      comments: formattedComments,
+      is_liked_by_user: isLikedByUser
     });
 
   } catch (error) {
@@ -141,4 +163,4 @@ export async function GET(
       { status: 500 }
     );
   }
-} 
+}

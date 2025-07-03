@@ -84,6 +84,7 @@ interface Post {
   tags: string[]
   featured_image?: string
   category: string
+  is_liked_by_user?: boolean
 }
 
 interface Comment {
@@ -111,6 +112,7 @@ export default function PostPage({ params }: Props) {
   const [comments, setComments] = useState<Comment[]>([])
   const [loading, setLoading] = useState(true)
   const [isLiked, setIsLiked] = useState(false)
+  const [isLikingInProgress, setIsLikingInProgress] = useState(false)
   const [isBookmarked, setIsBookmarked] = useState(false)
   const [showShareMenu, setShowShareMenu] = useState(false)
   const [newComment, setNewComment] = useState("")
@@ -120,7 +122,7 @@ export default function PostPage({ params }: Props) {
   const [reportReason, setReportReason] = useState("")
   const [reportDescription, setReportDescription] = useState("")
   const [isSubmittingComment, setIsSubmittingComment] = useState(false)
-
+  
   useEffect(() => {
     fetchPostAndComments()
     
@@ -147,9 +149,10 @@ export default function PostPage({ params }: Props) {
       }
 
       const data = await response.json();
-      
+      console.log(data);
       if (data.success) {
         setPost(data.post);
+        setIsLiked(data.post.is_liked_by_user || false);
         if (data.comments) {
           setComments(data.comments);
         }
@@ -165,8 +168,42 @@ export default function PostPage({ params }: Props) {
     }
   }
 
-  const handleLike = () => {
-    setIsLiked(!isLiked)
+  const handleLike = async () => {
+    if (!post || !session) return;
+    
+    setIsLikingInProgress(true);
+    
+    try {
+      const response = await fetch('/api/posts/like', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          postId: parseInt(post.id)
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setIsLiked(data.isLiked);
+        setPost(prev => prev ? {
+          ...prev,
+          likes_count: data.likesCount,
+          is_liked_by_user: data.isLiked
+        } : null);
+        
+        toast.success(data.isLiked ? "❤️ Post liked!" : "💔 Post unliked!");
+      } else {
+        toast.error(`❌ Failed to ${isLiked ? 'unlike' : 'like'} post: ${data.error || "Please try again."}`);
+      }
+    } catch (error) {
+      console.error('Error toggling like:', error);
+      toast.error("❌ Error updating like. Something went wrong. Please try again.");
+    } finally {
+      setIsLikingInProgress(false);
+    }
   }
 
   const handleBookmark = () => {
@@ -368,6 +405,7 @@ export default function PostPage({ params }: Props) {
           variant={isLiked ? "default" : "outline"}
           size="sm"
           onClick={handleLike}
+          disabled={isLikingInProgress || !session}
           className="bg-white/80 backdrop-blur-sm"
         >
           <Heart className={cn("h-4 w-4", isLiked && "fill-current")} />
@@ -577,7 +615,7 @@ export default function PostPage({ params }: Props) {
               <div className="flex items-center space-x-6">
                 <div className="flex items-center space-x-2">
                   <Heart className={cn("h-5 w-5", isLiked && "fill-red-500 text-red-500")} />
-                  <span className="font-medium">{post.likes_count + (isLiked ? 1 : 0)}</span>
+                  <span className="font-medium">{post.likes_count}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <MessageSquare className="h-5 w-5" />
@@ -589,9 +627,9 @@ export default function PostPage({ params }: Props) {
                 </div>
               </div>
               <div className="flex items-center space-x-2">
-                <Button variant="outline" size="sm" onClick={handleLike}>
+                <Button variant="outline" size="sm" onClick={handleLike} disabled={isLikingInProgress || !session}>
                   <Heart className={cn("h-4 w-4 mr-2", isLiked && "fill-current text-red-500")} />
-                  {isLiked ? "Liked" : "Like"}
+                  {isLikingInProgress ? "Processing..." : (isLiked ? "Liked" : "Like")}
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => setShowShareMenu(!showShareMenu)}>
                   <Share2 className="h-4 w-4 mr-2" />

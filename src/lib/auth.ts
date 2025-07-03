@@ -185,20 +185,20 @@ export const authOptions: AuthOptions = {
         
         if (!dbUser) {
           // User doesn't exist, create new user with viewer role
-          console.log("Creating new Google user:", user.email)
+          // console.log("Creating new Google user:", user.email)
           dbUser = await createUser(user.email, user.name, user.image || undefined)
           
           if (!dbUser) {
             console.error("Failed to create new Google user:", user.email)
             return false
           }
-          console.log("SignIn callback - Created new user:", dbUser)
+          // console.log("SignIn callback - Created new user:", dbUser)
         }
         
         // Update user object with database info
         user.id = dbUser.id.toString()
         user.role = dbUser.role
-        console.log("SignIn callback - Updated user object:", { id: user.id, role: user.role, email: user.email })
+        // console.log("SignIn callback - Updated user object:", { id: user.id, role: user.role, email: user.email })
         return true
       }
       
@@ -228,13 +228,16 @@ export const authOptions: AuthOptions = {
      * @returns Modified token
      */
     async jwt({ token, user }: any) {
+      // console.log('=== JWT CALLBACK DEBUG ===')
       // console.log('JWT callback - user:', user)
       // console.log('JWT callback - token before:', token)
       
       // If user is available (on signin), add custom fields to token
       if (user) {
         token.id = user.id
+        // console.log('JWT - Setting token.id from user.id:', token.id)
         token.role = user.role
+        // console.log('JWT - Setting token.role from user.role:', token.role)
         
         // If role is missing from user object, fetch from database
         if (!token.role && token.email) {
@@ -243,6 +246,7 @@ export const authOptions: AuthOptions = {
           if (dbUser) {
             token.role = dbUser.role
             token.id = dbUser.id.toString()
+            // console.log('JWT - Set from DB - token.id:', token.id, 'token.role:', token.role)
           }
         }
       }
@@ -254,10 +258,23 @@ export const authOptions: AuthOptions = {
         if (dbUser) {
           token.role = dbUser.role
           token.id = dbUser.id.toString()
+          // console.log('JWT - Subsequent call - Set from DB - token.id:', token.id, 'token.role:', token.role)
+        }
+      }
+      
+      // If ID is still missing, fetch from database
+      if (!token.id && token.email) {
+        // console.log('ID missing from token, fetching from database for:', token.email)
+        const dbUser = await getUserByEmail(token.email as string)
+        if (dbUser) {
+          token.id = dbUser.id.toString()
+          token.role = dbUser.role
+          // console.log('JWT - ID missing - Set from DB - token.id:', token.id, 'token.role:', token.role)
         }
       }
       
       // console.log('JWT callback - token after:', token)
+      // console.log('=== END JWT CALLBACK DEBUG ===')
       return token
     },
 
@@ -269,6 +286,7 @@ export const authOptions: AuthOptions = {
      * @returns Modified session
      */
     async session({ session, token }: any) {
+      // console.log('=== SESSION CALLBACK DEBUG ===')
       // console.log('Session callback - token:', token)
       // console.log('Session callback - session before:', session)
       
@@ -276,9 +294,12 @@ export const authOptions: AuthOptions = {
       if (token && session.user) {
         session.user.id = token.id as string
         session.user.role = token.role as "admin" | "editor" | "author" | "viewer"
+        // console.log('Session - Set session.user.id:', session.user.id)
+        // console.log('Session - Set session.user.role:', session.user.role)
       }
       
       // console.log('Session callback - session after:', session)
+      // console.log('=== END SESSION CALLBACK DEBUG ===')
       return session
     },
   },

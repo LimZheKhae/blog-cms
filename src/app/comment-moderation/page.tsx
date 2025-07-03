@@ -280,14 +280,14 @@ export default function CommentModerationPage() {
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold flex items-center mb-2">
+        <h1 className="text-3xl font-bold flex items-center mb-2">
               <Shield className="h-8 w-8 mr-3 text-blue-600" />
-              Comment Moderation
-            </h1>
-            <p className="text-gray-600">
-              Manage reported comments and maintain community standards
-            </p>
-          </div>
+          Comment Moderation
+        </h1>
+        <p className="text-gray-600">
+          Manage reported comments and maintain community standards
+        </p>
+      </div>
           <Button
             onClick={() => fetchModerationData()}
             variant="outline"
@@ -371,7 +371,7 @@ export default function CommentModerationPage() {
         <CardContent>
           {data?.comments.length === 0 ? (
             <div className="text-center py-12">
-              <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+          <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">No comments to moderate</h3>
               <p className="text-gray-600">
                 {activeFilter === 'pending' ? 'No pending reports at this time.' : 'No comments match the current filter.'}

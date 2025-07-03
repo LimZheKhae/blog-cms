@@ -62,6 +62,7 @@ import {
 import { cn } from "@/lib/utils"
 import { toast } from 'react-toastify'
 import { LoadingScreen } from '@/components/ui/loading-screen'
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog'
 // Removed markdown imports since we're using HTML content from TipTap
 
 interface Post {
@@ -98,6 +99,7 @@ interface Comment {
   report_count?: number
   is_reported?: boolean
   is_hidden?: boolean
+  is_liked_by_user?: boolean
 }
 
 interface Props {
@@ -124,6 +126,9 @@ export default function PostPage({ params }: Props) {
   const [reportReason, setReportReason] = useState("")
   const [reportDescription, setReportDescription] = useState("")
   const [isSubmittingComment, setIsSubmittingComment] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [commentToDelete, setCommentToDelete] = useState<string | null>(null)
+  const [commentLikingStates, setCommentLikingStates] = useState<Record<string, boolean>>({})
   
   useEffect(() => {
     fetchPostAndComments()
@@ -158,6 +163,12 @@ export default function PostPage({ params }: Props) {
         setIsBookmarked(data.post.is_bookmarked_by_user || false);
         if (data.comments) {
           setComments(data.comments);
+          // Initialize comment liking states
+          const initialLikingStates: Record<string, boolean> = {};
+          data.comments.forEach((comment: Comment) => {
+            initialLikingStates[comment.id] = comment.is_liked_by_user || false;
+          });
+          setCommentLikingStates(initialLikingStates);
         }
       } else {
         console.error('API returned error:', data.error);
@@ -337,11 +348,56 @@ export default function PostPage({ params }: Props) {
     }
   }
 
+  const handleCommentLike = async (commentId: string) => {
+    if (!session) return;
+    
+    try {
+      const response = await fetch('/api/comments/like', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          commentId: parseInt(commentId)
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Update the comment in the list
+        setComments(comments.map(c => 
+          c.id === commentId 
+            ? { ...c, likes: data.likesCount, is_liked_by_user: data.isLiked }
+            : c
+        ));
+        
+        // Update the liking state
+        setCommentLikingStates(prev => ({
+          ...prev,
+          [commentId]: data.isLiked
+        }));
+        
+        toast.success(data.isLiked ? "❤️ Comment liked!" : "💔 Comment unliked!");
+      } else {
+        toast.error(`❌ Failed to ${commentLikingStates[commentId] ? 'unlike' : 'like'} comment: ${data.error || "Please try again."}`);
+      }
+    } catch (error) {
+      console.error('Error toggling comment like:', error);
+      toast.error("❌ Error updating comment like. Something went wrong. Please try again.");
+    }
+  }
+
   const handleDeleteComment = async (commentId: string) => {
-    if (!confirm('Are you sure you want to delete this comment?')) return
+    setCommentToDelete(commentId);
+    setShowDeleteDialog(true);
+  }
+
+  const confirmDeleteComment = async () => {
+    if (!commentToDelete) return;
 
     try {
-      const response = await fetch(`/api/comments/${commentId}`, {
+      const response = await fetch(`/api/comments/${commentToDelete}`, {
         method: 'DELETE'
       })
 
@@ -349,7 +405,7 @@ export default function PostPage({ params }: Props) {
 
       if (response.ok && data.success) {
         // Remove the comment from the list
-        setComments(comments.filter(c => c.id !== commentId))
+        setComments(comments.filter(c => c.id !== commentToDelete))
         toast.success("🗑️ Comment deleted permanently.")
       } else {
         toast.error(`❌ Failed to delete comment: ${data.error || "Please try again."}`)
@@ -357,6 +413,8 @@ export default function PostPage({ params }: Props) {
     } catch (error) {
       console.error('Error deleting comment:', error)
       toast.error("❌ Error deleting comment. Something went wrong. Please try again.")
+    } finally {
+      setCommentToDelete(null);
     }
   }
 
@@ -802,8 +860,22 @@ export default function PostPage({ params }: Props) {
                             </div>
                           </div>
                           <p className="text-gray-700 mb-3">{comment.content}</p>
-                          <Button variant="ghost" size="sm" className="text-gray-500 hover:text-red-500">
-                            <Heart className="h-4 w-4 mr-1" />
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => handleCommentLike(comment.id)}
+                            disabled={!session}
+                            className={cn(
+                              "transition-all duration-200",
+                              commentLikingStates[comment.id]
+                                ? "text-red-500 hover:text-red-600" 
+                                : "text-gray-500 hover:text-red-500"
+                            )}
+                          >
+                            <Heart className={cn(
+                              "h-4 w-4 mr-1 transition-all duration-200",
+                              commentLikingStates[comment.id] && "fill-red-500"
+                            )} />
                             {comment.likes}
                           </Button>
                         </div>
@@ -928,6 +1000,18 @@ export default function PostPage({ params }: Props) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Custom Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={showDeleteDialog}
+        onClose={() => setShowDeleteDialog(false)}
+        onConfirm={confirmDeleteComment}
+        title="Delete Comment"
+        message="Are you sure you want to delete this comment? This action cannot be undone and the comment will be permanently removed."
+        confirmText="Delete Comment"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   )
 } 

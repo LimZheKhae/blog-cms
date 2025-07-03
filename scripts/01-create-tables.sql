@@ -34,6 +34,10 @@ CREATE TABLE IF NOT EXISTS comments (
   status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
   post_id INTEGER REFERENCES posts(id) ON DELETE CASCADE,
   author_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  likes_count INTEGER DEFAULT 0,
+  report_count INTEGER DEFAULT 0,
+  is_reported BOOLEAN DEFAULT FALSE,
+  is_hidden BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -66,6 +70,15 @@ CREATE TABLE IF NOT EXISTS post_bookmarks (
   UNIQUE(post_id, user_id) -- Prevent duplicate bookmarks from same user
 );
 
+-- Create comment_likes table for comment like tracking
+CREATE TABLE IF NOT EXISTS comment_likes (
+  id SERIAL PRIMARY KEY,
+  comment_id INTEGER REFERENCES comments(id) ON DELETE CASCADE,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(comment_id, user_id) -- Prevent duplicate likes from same user
+);
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_posts_author_id ON posts(author_id);
 CREATE INDEX IF NOT EXISTS idx_posts_status ON posts(status);
@@ -80,3 +93,5 @@ CREATE INDEX IF NOT EXISTS idx_post_likes_post_id ON post_likes(post_id);
 CREATE INDEX IF NOT EXISTS idx_post_likes_user_id ON post_likes(user_id);
 CREATE INDEX IF NOT EXISTS idx_post_bookmarks_post_id ON post_bookmarks(post_id);
 CREATE INDEX IF NOT EXISTS idx_post_bookmarks_user_id ON post_bookmarks(user_id);
+CREATE INDEX IF NOT EXISTS idx_comment_likes_comment_id ON comment_likes(comment_id);
+CREATE INDEX IF NOT EXISTS idx_comment_likes_user_id ON comment_likes(user_id);

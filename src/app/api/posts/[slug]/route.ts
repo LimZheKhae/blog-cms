@@ -14,15 +14,6 @@ export async function GET(
   try {
     const session = await getServerSession(authOptions) as Session | null;
     
-    // console.log('=== SESSION DEBUG [SLUG] ===');
-    // console.log('Full session:', JSON.stringify(session, null, 2));
-    // console.log('session.user:', session?.user);
-    // console.log('session.user.id:', session?.user?.id);
-    // console.log('session.user.email:', session?.user?.email);
-    // console.log('session.user.name:', session?.user?.name);
-    // console.log('session.user.role:', session?.user?.role);
-    // console.log('=== END SESSION DEBUG [SLUG] ===');
-    
     if (!session?.user) {
       return NextResponse.json(
         { error: 'Authentication required' },
@@ -85,6 +76,14 @@ export async function GET(
       WHERE c.post_id = ${post.id} AND c.is_hidden = false
       ORDER BY c.created_at DESC
     `;
+
+    // Check which comments the current user has liked
+    const userCommentLikes = await sql`
+      SELECT comment_id FROM comment_likes 
+      WHERE user_id = ${userId}
+    `;
+    console.log('userCommentLikes', userCommentLikes);
+    const userLikedCommentIds = new Set(userCommentLikes.map((like: any) => like.comment_id));
 
     // Get client IP for view tracking (to prevent duplicate views from same user/IP)
     const forwarded = request.headers.get('x-forwarded-for');
@@ -156,7 +155,8 @@ export async function GET(
       likes: comment.likes_count || 0,
       report_count: comment.report_count || 0,
       is_reported: comment.is_reported || false,
-      is_hidden: comment.is_hidden || false
+      is_hidden: comment.is_hidden || false,
+      is_liked_by_user: userLikedCommentIds.has(comment.id)
     }));
 
     return NextResponse.json({

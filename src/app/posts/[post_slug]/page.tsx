@@ -59,6 +59,7 @@ import {
   Trash2,
   EyeOff,
 } from "lucide-react"
+import { getCategoryInfo } from '@/lib/categories'
 import { cn } from "@/lib/utils"
 import { toast } from 'react-toastify'
 import { LoadingScreen } from '@/components/ui/loading-screen'
@@ -71,6 +72,7 @@ interface Post {
   content: string
   excerpt: string
   status: "draft" | "published"
+  category: string
   created_at: string
   updated_at: string
   author_id: string
@@ -84,7 +86,6 @@ interface Post {
   reading_time: number
   tags: string[]
   featured_image?: string
-  category: string
   is_liked_by_user?: boolean
   is_bookmarked_by_user?: boolean
 }
@@ -288,7 +289,7 @@ export default function PostPage({ params }: Props) {
 
       if (response.ok && data.success) {
         setIsBookmarked(data.isBookmarked);
-        toast.success(data.isBookmarked ? "🔖 Post bookmarked!" : "📖 Bookmark removed!");
+        // toast.success(data.isBookmarked ? "🔖 Post bookmarked!" : "📖 Bookmark removed!");
       } else {
         toast.error(`❌ Failed to ${isBookmarked ? 'remove bookmark' : 'bookmark'} post: ${data.error || "Please try again."}`);
       }
@@ -609,7 +610,7 @@ export default function PostPage({ params }: Props) {
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-24 lg:py-32">
           <div className="text-center space-y-6">
             <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
-              {post.category}
+              {getCategoryInfo(post.category).emoji} {post.category}
             </Badge>
             <h1 className="text-4xl md:text-6xl font-bold text-white leading-tight">
               {post.title}

@@ -29,6 +29,8 @@ import {
 } from 'lucide-react';
 import RichTextEditor from '@/components/ui/rich-text-editor';
 import { LoadingScreen } from '@/components/ui/loading-screen';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CATEGORIES, getCategoryInfo } from '@/lib/categories';
 import Link from 'next/link';
 
 interface PostData {
@@ -38,6 +40,7 @@ interface PostData {
   content: string;
   excerpt: string;
   status: "draft" | "published";
+  category?: string;
   created_at: string;
   updated_at: string;
   author_id: string;
@@ -52,6 +55,7 @@ interface PostFormData {
   content: string;
   excerpt: string;
   tags: string[];
+  category: string;
   status: 'draft' | 'published';
   reading_time_minutes: number;
 }
@@ -75,6 +79,7 @@ const EditPostPage = () => {
     content: '',
     excerpt: '',
     tags: [],
+    category: 'Technology',
     status: 'draft',
     reading_time_minutes: 1
   });
@@ -180,6 +185,7 @@ const EditPostPage = () => {
             content: postData.content,
             excerpt: postData.excerpt,
             tags: postData.tags || [],
+            category: postData.category || 'Technology',
             status: postData.status,
             reading_time_minutes: postData.reading_time_minutes || 1
           });
@@ -548,6 +554,34 @@ const EditPostPage = () => {
                   />
                   <p className="text-xs text-slate-500 mt-1">
                     URL: {typeof window !== 'undefined' ? window.location.origin : ''}/posts/{formData.slug}
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="category" className="text-sm font-medium">
+                    Category *
+                  </Label>
+                  <Select
+                    value={formData.category}
+                    onValueChange={(value) => handleInputChange('category', value)}
+                    disabled={saving || publishing}
+                  >
+                    <SelectTrigger className="mt-1 bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600">
+                      <SelectValue placeholder="Select a category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CATEGORIES.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          <div className="flex items-center space-x-2">
+                            <span>{getCategoryInfo(category).emoji}</span>
+                            <span>{category}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Choose the most relevant category for your post.
                   </p>
                 </div>
               </CardContent>

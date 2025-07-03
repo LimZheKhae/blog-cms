@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { neon } from '@neondatabase/serverless';
 import { authOptions } from '@/lib/auth';
 import { hasPermission, PERMISSIONS } from '@/lib/permissions';
+import { CATEGORIES } from '@/lib/categories';
 import type { Session } from 'next-auth';
 
 const sql = neon(process.env.DATABASE_URL!);
@@ -42,7 +43,7 @@ export async function GET(
     // Fetch post with author information
     const postResult = await sql`
       SELECT 
-        p.id, p.title, p.slug, p.content, p.excerpt, p.status, 
+        p.id, p.title, p.slug, p.content, p.excerpt, p.status, p.category,
         p.created_at, p.updated_at, p.author_id, p.reading_time_minutes,
         p.tags,
         u.name as author_name, u.email as author_email
@@ -89,6 +90,7 @@ export async function GET(
         content: post.content,
         excerpt: post.excerpt,
         status: post.status,
+        category: post.category || 'Technology',
         created_at: post.created_at,
         updated_at: post.updated_at,
         author_id: post.author_id?.toString(),
@@ -155,7 +157,7 @@ export async function PUT(
     const post = existingPost[0];
 
     // STRICT SECURITY RULE: Only allow users to edit their own posts
-    if (post.author_id !== session.user.id) {
+    if (String(post.author_id) !== String(session.user.id)) {
       return NextResponse.json(
         { error: 'You can only edit your own posts' },
         { status: 403 }
@@ -171,7 +173,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { title, slug, content, excerpt, status, reading_time_minutes, tags } = body;
+    const { title, slug, content, excerpt, status, reading_time_minutes, tags, category } = body;
 
     if (!title || !content || !excerpt || !slug) {
       return NextResponse.json(
@@ -192,6 +194,14 @@ export async function PUT(
     if (status && !['draft', 'published'].includes(status)) {
       return NextResponse.json(
         { error: 'Status must be either "draft" or "published"' },
+        { status: 400 }
+      );
+    }
+
+    // Validate category
+    if (category && !CATEGORIES.includes(category as any)) {
+      return NextResponse.json(
+        { error: `Invalid category. Must be one of: ${CATEGORIES.join(', ')}` },
         { status: 400 }
       );
     }
@@ -219,9 +229,10 @@ export async function PUT(
         status = ${status || 'draft'},
         reading_time_minutes = ${reading_time_minutes || 1},
         tags = ${tags || []},
+        category = ${category || 'Technology'},
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${postId}
-      RETURNING id, title, slug, status, updated_at
+      RETURNING id, title, slug, status, category, updated_at
     `;
 
     if (result.length === 0) {

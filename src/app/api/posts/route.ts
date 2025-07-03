@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { neon } from '@neondatabase/serverless';
 import { authOptions } from '@/lib/auth';
 import { hasPermission, PERMISSIONS } from '@/lib/permissions';
+import { CATEGORIES } from '@/lib/categories';
 import type { Session } from 'next-auth';
 
 // Initialize database connection
@@ -43,6 +44,7 @@ export async function POST(request: NextRequest) {
       tags,
       status,
       reading_time_minutes,
+      category,
       author_id
     } = body;
 
@@ -66,6 +68,14 @@ export async function POST(request: NextRequest) {
     if (status && !['draft', 'published'].includes(status)) {
       return NextResponse.json(
         { error: 'Status must be either "draft" or "published"' },
+        { status: 400 }
+      );
+    }
+
+    // Validate category
+    if (category && !CATEGORIES.includes(category as any)) {
+      return NextResponse.json(
+        { error: `Invalid category. Must be one of: ${CATEGORIES.join(', ')}` },
         { status: 400 }
       );
     }
@@ -96,6 +106,7 @@ export async function POST(request: NextRequest) {
         status, 
         author_id, 
         reading_time_minutes,
+        category,
         views_count,
         likes_count
       ) VALUES (
@@ -107,10 +118,11 @@ export async function POST(request: NextRequest) {
         ${status || 'draft'},
         ${finalAuthorId},
         ${reading_time_minutes || 1},
+        ${category || 'Technology'},
         0,
         0
       )
-      RETURNING id, title, slug, content, excerpt, tags, status, author_id, reading_time_minutes, views_count, likes_count, created_at, updated_at
+      RETURNING id, title, slug, content, excerpt, tags, status, author_id, reading_time_minutes, category, views_count, likes_count, created_at, updated_at
     `;
     // console.log(result);
     if (result.length === 0) {
@@ -176,6 +188,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const search = searchParams.get('search');
     const sortBy = searchParams.get('sortBy') || 'newest';
+    const category = searchParams.get('category');
     const draftsOnly = searchParams.get('draftsOnly') === 'true'; // New parameter for drafts
     
     const offset = (page - 1) * limit;
@@ -186,7 +199,7 @@ export async function GET(request: NextRequest) {
       // Special endpoint for user's own drafts only
       posts = await sql`
         SELECT 
-          p.id, p.title, p.slug, p.content, p.excerpt, p.tags, p.status, 
+          p.id, p.title, p.slug, p.content, p.excerpt, p.tags, p.status, p.category,
           p.views_count, p.likes_count, p.reading_time_minutes,
           p.created_at, p.updated_at,
           u.id as author_id, u.name as author_name, u.email as author_email, 
@@ -206,7 +219,7 @@ export async function GET(request: NextRequest) {
         if (canViewAllDrafts) {
           posts = await sql`
             SELECT 
-              p.id, p.title, p.slug, p.content, p.excerpt, p.tags, p.status, 
+              p.id, p.title, p.slug, p.content, p.excerpt, p.tags, p.status, p.category,
               p.views_count, p.likes_count, p.reading_time_minutes,
               p.created_at, p.updated_at,
               u.id as author_id, u.name as author_name, u.email as author_email, 
@@ -220,7 +233,7 @@ export async function GET(request: NextRequest) {
           // Authors see only their own drafts
           posts = await sql`
             SELECT 
-              p.id, p.title, p.slug, p.content, p.excerpt, p.tags, p.status, 
+              p.id, p.title, p.slug, p.content, p.excerpt, p.tags, p.status, p.category,
               p.views_count, p.likes_count, p.reading_time_minutes,
               p.created_at, p.updated_at,
               u.id as author_id, u.name as author_name, u.email as author_email, 
@@ -235,7 +248,7 @@ export async function GET(request: NextRequest) {
         // Everyone can see published posts
         posts = await sql`
           SELECT 
-            p.id, p.title, p.slug, p.content, p.excerpt, p.tags, p.status, 
+            p.id, p.title, p.slug, p.content, p.excerpt, p.tags, p.status, p.category,
             p.views_count, p.likes_count, p.reading_time_minutes,
             p.created_at, p.updated_at,
             u.id as author_id, u.name as author_name, u.email as author_email, 
@@ -254,7 +267,7 @@ export async function GET(request: NextRequest) {
           // Editors/admins see everything
           posts = await sql`
             SELECT 
-              p.id, p.title, p.slug, p.content, p.excerpt, p.tags, p.status, 
+              p.id, p.title, p.slug, p.content, p.excerpt, p.tags, p.status, p.category,
               p.views_count, p.likes_count, p.reading_time_minutes,
               p.created_at, p.updated_at,
               u.id as author_id, u.name as author_name, u.email as author_email, 
@@ -267,7 +280,7 @@ export async function GET(request: NextRequest) {
           // Authors see published posts + their own drafts
           posts = await sql`
             SELECT 
-              p.id, p.title, p.slug, p.content, p.excerpt, p.tags, p.status, 
+              p.id, p.title, p.slug, p.content, p.excerpt, p.tags, p.status, p.category,
               p.views_count, p.likes_count, p.reading_time_minutes,
               p.created_at, p.updated_at,
               u.id as author_id, u.name as author_name, u.email as author_email, 
@@ -307,6 +320,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Apply category filter
+    if (category && category !== 'all') {
+      filteredPosts = filteredPosts.filter((post: any) => post.category === category);
+    }
+
     // Apply sorting
     switch (sortBy) {
       case 'oldest':
@@ -334,6 +352,7 @@ export async function GET(request: NextRequest) {
       content: post.content,
       excerpt: post.excerpt,
       status: post.status,
+      category: post.category || 'Technology',
       created_at: post.created_at,
       updated_at: post.updated_at,
       author_id: post.author_id?.toString(),

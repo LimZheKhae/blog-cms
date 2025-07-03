@@ -28,7 +28,7 @@ export async function GET(
     // Get the post with author information using slug
     const posts = await sql`
       SELECT 
-        p.id, p.title, p.slug, p.content, p.excerpt, p.tags, p.status, 
+        p.id, p.title, p.slug, p.content, p.excerpt, p.tags, p.status, p.category,
         p.views_count, p.likes_count, p.reading_time_minutes,
         p.created_at, p.updated_at,
         u.id as author_id, u.name as author_name, u.email as author_email, 
@@ -130,6 +130,7 @@ export async function GET(
       content: post.content,
       excerpt: post.excerpt,
       status: post.status,
+      category: post.category || 'Technology',
       created_at: post.created_at,
       updated_at: post.updated_at,
       author_id: post.author_id?.toString(),
@@ -141,7 +142,6 @@ export async function GET(
       likes_count: post.likes_count || 0,
       reading_time: post.reading_time_minutes || 1,
       tags: post.tags || [],
-      category: "Technology", // Default category
       is_liked_by_user: isLikedByUser,
       is_bookmarked_by_user: isBookmarkedByUser
     };

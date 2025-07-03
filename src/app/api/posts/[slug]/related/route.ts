@@ -27,7 +27,7 @@ export async function GET(
 
     // First, get the current post to analyze its tags and category
     const currentPost = await sql`
-      SELECT id, title, tags, status
+      SELECT id, title, tags, category, status
       FROM posts 
       WHERE slug = ${slug} AND status = 'published'
       LIMIT 1
@@ -55,7 +55,7 @@ export async function GET(
       relatedPosts = await sql`
         WITH tag_similarity AS (
           SELECT 
-            p.id, p.title, p.slug, p.excerpt, p.tags, p.views_count, p.likes_count, 
+            p.id, p.title, p.slug, p.excerpt, p.tags, p.category, p.views_count, p.likes_count, 
             p.reading_time_minutes, p.created_at,
             u.id as author_id, u.name as author_name, u.avatar_url as author_avatar,
             -- Calculate tag overlap score
@@ -87,7 +87,7 @@ export async function GET(
 
       const fallbackPosts = await sql`
         SELECT 
-          p.id, p.title, p.slug, p.excerpt, p.tags, p.views_count, p.likes_count, 
+          p.id, p.title, p.slug, p.excerpt, p.tags, p.category, p.views_count, p.likes_count, 
           p.reading_time_minutes, p.created_at,
           u.id as author_id, u.name as author_name, u.avatar_url as author_avatar,
           0 as tag_overlap_count
@@ -128,6 +128,7 @@ export async function GET(
       slug: relatedPost.slug,
       excerpt: relatedPost.excerpt,
       tags: relatedPost.tags || [],
+      category: relatedPost.category || 'Technology',
       created_at: relatedPost.created_at,
       author_id: relatedPost.author_id?.toString(),
       author_name: relatedPost.author_name,

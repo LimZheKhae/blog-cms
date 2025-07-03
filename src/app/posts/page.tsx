@@ -35,6 +35,7 @@ import {
 import { cn } from "@/lib/utils"
 import { LoadingScreen } from "@/components/ui/loading-screen"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { CATEGORIES, getCategoryInfo } from '@/lib/categories'
 
 interface Post {
   id: string
@@ -43,6 +44,7 @@ interface Post {
   content: string
   excerpt: string
   status: "draft" | "published"
+  category?: string
   created_at: string
   updated_at: string
   author_id: string
@@ -62,6 +64,7 @@ export default function PostsPage() {
   const [bookmarksLoading, setBookmarksLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("published")
+  const [categoryFilter, setCategoryFilter] = useState<string>("all")
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [sortBy, setSortBy] = useState<string>("newest")
   const [activeTab, setActiveTab] = useState<string>("all")
@@ -73,7 +76,8 @@ export default function PostsPage() {
         limit: '20',
         status: statusFilter,
         search: searchTerm,
-        sortBy: sortBy
+        sortBy: sortBy,
+        category: categoryFilter
       });
 
       // Remove empty parameters
@@ -150,7 +154,7 @@ export default function PostsPage() {
 
   useEffect(() => {
     fetchPosts()
-  }, [searchTerm, statusFilter, sortBy])
+  }, [searchTerm, statusFilter, categoryFilter, sortBy])
 
   useEffect(() => {
     if (activeTab === "saved") {
@@ -266,6 +270,16 @@ export default function PostsPage() {
             {viewMode === "grid" ? (
               <>
                 <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between mb-2">
+                    {post.category && (
+                      <Badge variant="outline" className={getCategoryInfo(post.category).color}>
+                        {getCategoryInfo(post.category).emoji} {post.category}
+                      </Badge>
+                    )}
+                    <Badge variant={getStatusBadgeVariant(post.status)} className="text-xs">
+                      {post.status === 'draft' ? '📝 Draft' : '✅ Published'}
+                    </Badge>
+                  </div>
                   <CardTitle className="text-xl group-hover:text-blue-600 transition-colors">
                     {post.title}
                   </CardTitle>
@@ -322,9 +336,16 @@ export default function PostsPage() {
               <>
                 <div className="flex-1 p-6">
                   <div className="flex items-center justify-between mb-2">
-                    <Badge variant={getStatusBadgeVariant(post.status)}>
-                      {post.status === 'draft' ? '📝 Draft' : '✅ Published'}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      {post.category && (
+                        <Badge variant="outline" className={getCategoryInfo(post.category).color}>
+                          {getCategoryInfo(post.category).emoji} {post.category}
+                        </Badge>
+                      )}
+                      <Badge variant={getStatusBadgeVariant(post.status)}>
+                        {post.status === 'draft' ? '📝 Draft' : '✅ Published'}
+                      </Badge>
+                    </div>
                   </div>
                   <h3 className="text-xl font-semibold mb-2 group-hover:text-blue-600 transition-colors">
                     {post.title}
@@ -434,6 +455,21 @@ export default function PostsPage() {
                 </Link>
               )}
               
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-44 bg-white/70 backdrop-blur-sm">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {CATEGORIES.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {getCategoryInfo(category).emoji} {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
               <Select value={sortBy} onValueChange={setSortBy}>
                 <SelectTrigger className="w-36 bg-white/70 backdrop-blur-sm">
                   <SelectValue />

@@ -26,6 +26,8 @@ import {
 } from 'lucide-react';
 import RichTextEditor from '@/components/ui/rich-text-editor';
 import { LoadingScreen } from '@/components/ui/loading-screen';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CATEGORIES, getCategoryInfo } from '@/lib/categories';
 
 interface PostFormData {
   title: string;
@@ -33,6 +35,7 @@ interface PostFormData {
   content: string;
   excerpt: string;
   tags: string[];
+  category: string;
   status: 'draft' | 'published';
   reading_time_minutes: number;
 }
@@ -49,6 +52,7 @@ const CreatePostPage = () => {
     content: '',
     excerpt: '',
     tags: [],
+    category: 'Technology',
     status: 'draft',
     reading_time_minutes: 0
   });
@@ -353,6 +357,34 @@ const CreatePostPage = () => {
                     />
                     <p className="text-xs text-slate-500 mt-1">
                       Auto-generated from title. You can customize it.
+                    </p>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="category" className="text-sm font-medium">
+                      Category *
+                    </Label>
+                    <Select
+                      value={formData.category}
+                      onValueChange={(value) => handleInputChange('category', value)}
+                      disabled={isLoading}
+                    >
+                      <SelectTrigger className="mt-1 bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600">
+                        <SelectValue placeholder="Select a category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CATEGORIES.map((category) => (
+                          <SelectItem key={category} value={category}>
+                            <div className="flex items-center space-x-2">
+                              <span>{getCategoryInfo(category).emoji}</span>
+                              <span>{category}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Choose the most relevant category for your post.
                     </p>
                   </div>
                 </CardContent>

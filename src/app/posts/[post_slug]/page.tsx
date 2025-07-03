@@ -208,7 +208,7 @@ export default function PostPage({ params }: Props) {
           is_liked_by_user: data.isLiked
         } : null);
         
-        toast.success(data.isLiked ? "❤️ Post liked!" : "💔 Post unliked!");
+        // toast.success(data.isLiked ? "❤️ Post liked!" : "💔 Post unliked!");
       } else {
         toast.error(`❌ Failed to ${isLiked ? 'unlike' : 'like'} post: ${data.error || "Please try again."}`);
       }
@@ -378,12 +378,12 @@ export default function PostPage({ params }: Props) {
           [commentId]: data.isLiked
         }));
         
-        toast.success(data.isLiked ? "❤️ Comment liked!" : "💔 Comment unliked!");
+        // toast.success(data.isLiked ? "❤️ Comment liked!" : "💔 Comment unliked!");
       } else {
         toast.error(`❌ Failed to ${commentLikingStates[commentId] ? 'unlike' : 'like'} comment: ${data.error || "Please try again."}`);
       }
     } catch (error) {
-      console.error('Error toggling comment like:', error);
+      // console.error('Error toggling comment like:', error);
       toast.error("❌ Error updating comment like. Something went wrong. Please try again.");
     }
   }

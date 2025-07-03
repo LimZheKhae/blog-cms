@@ -66,6 +66,22 @@ async function createUser(email: string, name: string, avatarUrl?: string) {
 }
 
 /**
+ * Database function to update user's last login timestamp
+ * Called whenever a user successfully signs in
+ */
+async function updateLastLogin(userId: string) {
+  try {
+    await sql`
+      UPDATE users 
+      SET last_login_at = CURRENT_TIMESTAMP 
+      WHERE id = ${parseInt(userId)}
+    `
+  } catch (error) {
+    console.error("Database error when updating last login:", error)
+  }
+}
+
+/**
  * NextAuth v4 configuration object
  * Defines providers, callbacks, pages, and session strategy
  */
@@ -173,6 +189,10 @@ export const authOptions: AuthOptions = {
     async signIn({ user, account, profile }: any) {
       // Allow credentials provider (already checked in authorize function)
       if (account?.provider === "credentials") {
+        // Update last login for credentials provider
+        if (user?.id) {
+          await updateLastLogin(user.id)
+        }
         return true
       }
       
@@ -199,6 +219,9 @@ export const authOptions: AuthOptions = {
         user.id = dbUser.id.toString()
         user.role = dbUser.role
         // console.log("SignIn callback - Updated user object:", { id: user.id, role: user.role, email: user.email })
+        
+        // Update last login timestamp
+        await updateLastLogin(user.id)
         return true
       }
       
@@ -210,6 +233,9 @@ export const authOptions: AuthOptions = {
           // Update user object with database info
           user.id = dbUser.id.toString()
           user.role = dbUser.role
+          
+          // Update last login timestamp
+          await updateLastLogin(user.id)
           return true
         } else {
           // User email not found in database, deny sign in

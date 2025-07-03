@@ -304,7 +304,7 @@ export async function DELETE(
     const post = existingPost[0];
 
     // STRICT SECURITY RULE: Only allow users to delete their own drafts
-    if (post.author_id !== session.user.id) {
+    if (parseInt(post.author_id) !== parseInt(session.user.id)) {
       return NextResponse.json(
         { error: 'You can only delete your own posts' },
         { status: 403 }

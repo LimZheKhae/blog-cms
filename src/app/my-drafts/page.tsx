@@ -24,6 +24,7 @@ import { LoadingScreen } from "@/components/ui/loading-screen"
 import { toast } from "react-toastify"
 import { Navbar } from "@/components/layout/navbar"
 import { hasPermission, PERMISSIONS } from "@/lib/permissions"
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"
 
 interface DraftPost {
   id: string
@@ -45,6 +46,8 @@ export default function MyDraftsPage() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [draftToDelete, setDraftToDelete] = useState<{ id: string; title: string } | null>(null)
 
   // Check authentication and permissions
   useEffect(() => {
@@ -99,13 +102,16 @@ export default function MyDraftsPage() {
   }, [session])
 
   const handleDeleteDraft = async (draftId: string, title: string) => {
-    if (!confirm(`Are you sure you want to delete "${title}"? This action cannot be undone.`)) {
-      return
-    }
+    setDraftToDelete({ id: draftId, title })
+    setShowDeleteDialog(true)
+  }
 
-    setDeleteLoading(draftId)
+  const confirmDeleteDraft = async () => {
+    if (!draftToDelete) return
+
+    setDeleteLoading(draftToDelete.id)
     try {
-              const response = await fetch(`/api/posts/manage/${draftId}`, {
+      const response = await fetch(`/api/posts/manage/${draftToDelete.id}`, {
         method: "DELETE"
       })
 
@@ -121,6 +127,7 @@ export default function MyDraftsPage() {
       toast.error("Error deleting draft")
     } finally {
       setDeleteLoading(null)
+      setDraftToDelete(null)
     }
   }
 
@@ -280,7 +287,7 @@ export default function MyDraftsPage() {
                       size="sm"
                       onClick={() => handleDeleteDraft(draft.id, draft.title)}
                       disabled={deleteLoading === draft.id}
-                      className="px-3 hover:bg-red-50 hover:border-red-200 hover:text-red-600"
+                      className="px-3 hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-all duration-200"
                     >
                       {deleteLoading === draft.id ? (
                         <div className="h-4 w-4 animate-spin rounded-full border-2 border-red-600 border-t-transparent" />
@@ -295,6 +302,22 @@ export default function MyDraftsPage() {
           </div>
         )}
       </div>
+
+      {/* Custom Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={showDeleteDialog}
+        onClose={() => setShowDeleteDialog(false)}
+        onConfirm={confirmDeleteDraft}
+        title="Delete Draft"
+        message={
+          draftToDelete 
+            ? `Are you sure you want to delete "${draftToDelete.title}"? This action cannot be undone and the draft will be permanently removed.`
+            : "Are you sure you want to delete this draft? This action cannot be undone."
+        }
+        confirmText="Delete Draft"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   )
 }

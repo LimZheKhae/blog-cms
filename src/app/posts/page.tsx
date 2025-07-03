@@ -427,7 +427,7 @@ export default function PostsPage() {
               {/* Create New Post Button */}
               {session?.user?.role && hasPermission(session.user.role, PERMISSIONS.CREATE_POST) && (
                 <Link href="/posts/create">
-                  <Button className="bg-blue-600 hover:bg-blue-700">
+                  <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
                     <Sparkles className="h-4 w-4 mr-2" />
                     Create Post
                   </Button>

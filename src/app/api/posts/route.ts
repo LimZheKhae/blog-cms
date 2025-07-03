@@ -341,6 +341,7 @@ export async function GET(request: NextRequest) {
       author_avatar: post.author_avatar,
       views_count: post.views_count || 0,
       comments_count: post.comments_count || 0,
+      likes_count: post.likes_count || 0,
       reading_time: post.reading_time_minutes || 1
     }));
 

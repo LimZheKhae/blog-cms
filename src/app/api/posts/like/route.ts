@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = session.user.id;
-    console.log('Extracted userId:', userId);
+    // console.log('Extracted userId:', userId);
 
     // Verify the post exists
     const posts = await sql`

@@ -85,6 +85,7 @@ interface Post {
   featured_image?: string
   category: string
   is_liked_by_user?: boolean
+  is_bookmarked_by_user?: boolean
 }
 
 interface Comment {
@@ -114,6 +115,7 @@ export default function PostPage({ params }: Props) {
   const [isLiked, setIsLiked] = useState(false)
   const [isLikingInProgress, setIsLikingInProgress] = useState(false)
   const [isBookmarked, setIsBookmarked] = useState(false)
+  const [isBookmarkingInProgress, setIsBookmarkingInProgress] = useState(false)
   const [showShareMenu, setShowShareMenu] = useState(false)
   const [newComment, setNewComment] = useState("")
   const [readingProgress, setReadingProgress] = useState(0)
@@ -153,6 +155,7 @@ export default function PostPage({ params }: Props) {
       if (data.success) {
         setPost(data.post);
         setIsLiked(data.post.is_liked_by_user || false);
+        setIsBookmarked(data.post.is_bookmarked_by_user || false);
         if (data.comments) {
           setComments(data.comments);
         }
@@ -206,8 +209,36 @@ export default function PostPage({ params }: Props) {
     }
   }
 
-  const handleBookmark = () => {
-    setIsBookmarked(!isBookmarked)
+  const handleBookmark = async () => {
+    if (!post || !session) return;
+    
+    setIsBookmarkingInProgress(true);
+    
+    try {
+      const response = await fetch('/api/posts/bookmark', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          postId: parseInt(post.id)
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setIsBookmarked(data.isBookmarked);
+        toast.success(data.isBookmarked ? "🔖 Post bookmarked!" : "📖 Bookmark removed!");
+      } else {
+        toast.error(`❌ Failed to ${isBookmarked ? 'remove bookmark' : 'bookmark'} post: ${data.error || "Please try again."}`);
+      }
+    } catch (error) {
+      console.error('Error toggling bookmark:', error);
+      toast.error("❌ Error updating bookmark. Something went wrong. Please try again.");
+    } finally {
+      setIsBookmarkingInProgress(false);
+    }
   }
 
   const handleShare = (platform: string) => {
@@ -402,21 +433,32 @@ export default function PostPage({ params }: Props) {
       {/* Floating Actions */}
       <div className="fixed left-4 top-1/2 transform -translate-y-1/2 z-40 hidden lg:flex flex-col gap-2">
         <Button
-          variant={isLiked ? "default" : "outline"}
+          variant="outline"
           size="sm"
           onClick={handleLike}
           disabled={isLikingInProgress || !session}
-          className="bg-white/80 backdrop-blur-sm"
+          className={cn(
+            "bg-white/80 backdrop-blur-sm border-2 transition-all duration-200",
+            isLiked 
+              ? "border-red-500 bg-red-50 hover:bg-red-100 text-red-600" 
+              : "border-gray-300 hover:border-red-300 hover:bg-red-50"
+          )}
         >
-          <Heart className={cn("h-4 w-4", isLiked && "fill-current")} />
+          <Heart className={cn("h-4 w-4 transition-all duration-200", isLiked && "fill-red-500 text-red-500")} />
         </Button>
         <Button
-          variant={isBookmarked ? "default" : "outline"}
+          variant="outline"
           size="sm"
           onClick={handleBookmark}
-          className="bg-white/80 backdrop-blur-sm"
+          disabled={isBookmarkingInProgress || !session}
+          className={cn(
+            "bg-white/80 backdrop-blur-sm border-2 transition-all duration-200",
+            isBookmarked 
+              ? "border-blue-500 bg-blue-50 hover:bg-blue-100 text-blue-600" 
+              : "border-gray-300 hover:border-blue-300 hover:bg-blue-50"
+          )}
         >
-          <Bookmark className={cn("h-4 w-4", isBookmarked && "fill-current")} />
+          <Bookmark className={cn("h-4 w-4 transition-all duration-200", isBookmarked && "fill-blue-500 text-blue-500")} />
         </Button>
         <div className="relative">
           <Button
@@ -627,9 +669,35 @@ export default function PostPage({ params }: Props) {
                 </div>
               </div>
               <div className="flex items-center space-x-2">
-                <Button variant="outline" size="sm" onClick={handleLike} disabled={isLikingInProgress || !session}>
-                  <Heart className={cn("h-4 w-4 mr-2", isLiked && "fill-current text-red-500")} />
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleLike} 
+                  disabled={isLikingInProgress || !session}
+                  className={cn(
+                    "border-2 transition-all duration-200",
+                    isLiked 
+                      ? "border-red-500 bg-red-50 hover:bg-red-100 text-red-600" 
+                      : "border-gray-300 hover:border-red-300 hover:bg-red-50"
+                  )}
+                >
+                  <Heart className={cn("h-4 w-4 mr-2 transition-all duration-200", isLiked && "fill-red-500 text-red-500")} />
                   {isLikingInProgress ? "Processing..." : (isLiked ? "Liked" : "Like")}
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleBookmark} 
+                  disabled={isBookmarkingInProgress || !session}
+                  className={cn(
+                    "border-2 transition-all duration-200",
+                    isBookmarked 
+                      ? "border-blue-500 bg-blue-50 hover:bg-blue-100 text-blue-600" 
+                      : "border-gray-300 hover:border-blue-300 hover:bg-blue-50"
+                  )}
+                >
+                  <Bookmark className={cn("h-4 w-4 mr-2 transition-all duration-200", isBookmarked && "fill-blue-500 text-blue-500")} />
+                  {isBookmarkingInProgress ? "Processing..." : (isBookmarked ? "Bookmarked" : "Bookmark")}
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => setShowShareMenu(!showShareMenu)}>
                   <Share2 className="h-4 w-4 mr-2" />

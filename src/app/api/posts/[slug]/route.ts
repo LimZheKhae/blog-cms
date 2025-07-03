@@ -31,7 +31,7 @@ export async function GET(
     }
 
     const userId = session.user.id;
-    console.log('Extracted userId:', userId);
+    // console.log('Extracted userId:', userId);
     const { slug } = await params;
 
     // Get the post with author information using slug
@@ -65,6 +65,15 @@ export async function GET(
     `;
 
     const isLikedByUser = userLike.length > 0;
+
+    // Check if current user has bookmarked this post
+    const userBookmark = await sql`
+      SELECT id FROM post_bookmarks 
+      WHERE post_id = ${post.id} AND user_id = ${userId}
+      LIMIT 1
+    `;
+
+    const isBookmarkedByUser = userBookmark.length > 0;
 
     // Get comments for the post (excluding hidden ones)
     const comments = await sql`
@@ -134,7 +143,8 @@ export async function GET(
       reading_time: post.reading_time_minutes || 1,
       tags: post.tags || [],
       category: "Technology", // Default category
-      is_liked_by_user: isLikedByUser
+      is_liked_by_user: isLikedByUser,
+      is_bookmarked_by_user: isBookmarkedByUser
     };
 
     const formattedComments = comments.map((comment: any) => ({
@@ -153,7 +163,8 @@ export async function GET(
       success: true,
       post: formattedPost,
       comments: formattedComments,
-      is_liked_by_user: isLikedByUser
+      is_liked_by_user: isLikedByUser,
+      is_bookmarked_by_user: isBookmarkedByUser
     });
 
   } catch (error) {

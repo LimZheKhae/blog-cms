@@ -57,6 +57,15 @@ CREATE TABLE IF NOT EXISTS post_likes (
   UNIQUE(post_id, user_id) -- Prevent duplicate likes from same user
 );
 
+-- Create post_bookmarks table for bookmark tracking
+CREATE TABLE IF NOT EXISTS post_bookmarks (
+  id SERIAL PRIMARY KEY,
+  post_id INTEGER REFERENCES posts(id) ON DELETE CASCADE,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(post_id, user_id) -- Prevent duplicate bookmarks from same user
+);
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_posts_author_id ON posts(author_id);
 CREATE INDEX IF NOT EXISTS idx_posts_status ON posts(status);
@@ -69,3 +78,5 @@ CREATE INDEX IF NOT EXISTS idx_post_views_user_id ON post_views(user_id);
 CREATE INDEX IF NOT EXISTS idx_post_views_viewed_at ON post_views(viewed_at);
 CREATE INDEX IF NOT EXISTS idx_post_likes_post_id ON post_likes(post_id);
 CREATE INDEX IF NOT EXISTS idx_post_likes_user_id ON post_likes(user_id);
+CREATE INDEX IF NOT EXISTS idx_post_bookmarks_post_id ON post_bookmarks(post_id);
+CREATE INDEX IF NOT EXISTS idx_post_bookmarks_user_id ON post_bookmarks(user_id);

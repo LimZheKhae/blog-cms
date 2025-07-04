@@ -1183,10 +1183,10 @@ export default function PostPage({ params }: Props) {
 }
 
 // Simple debounce function
-function debounce(fn: Function, delay: number) {
+function debounce<T extends (...args: any[]) => void>(fn: T, delay: number) {
   let timeout: NodeJS.Timeout;
-  return function() {
+  return function(this: unknown, ...args: Parameters<T>) {
     clearTimeout(timeout);
-    timeout = setTimeout(() => fn.apply(this, arguments), delay);
+    timeout = setTimeout(() => fn.apply(this, args), delay);
   };
 } 

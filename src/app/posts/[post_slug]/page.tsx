@@ -159,8 +159,9 @@ export default function PostPage({ params }: Props) {
       setReadingProgress(Math.min(progress, 100))
     }
 
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
+    const scrollDebounce = debounce(handleScroll, 100)
+    window.addEventListener('scroll', scrollDebounce, { passive: true })
+    return () => window.removeEventListener('scroll', scrollDebounce)
   }, [resolvedParams.post_slug])
 
   // Fetch related posts after the main post is loaded
@@ -169,6 +170,24 @@ export default function PostPage({ params }: Props) {
       fetchRelatedPosts()
     }
   }, [post, session])
+
+  useEffect(() => {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          // Load video only when visible
+          entry.target.querySelector('iframe')?.setAttribute('src', 
+            entry.target.querySelector('iframe')?.dataset.src || '');
+        }
+      });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.video-wrapper').forEach(el => {
+      observer.observe(el);
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   const fetchPostAndComments = async () => {
     try {
@@ -507,6 +526,41 @@ export default function PostPage({ params }: Props) {
     })
   }
 
+  // Convert video placeholders to actual videos
+  const processVideoContent = (content: string) => {
+    return content.replace(
+      /<div data-video-id="[^"]*" data-video-src="([^"]*)" data-video-title="([^"]*)" class="video-placeholder[^>]*>[\s\S]*?<\/div>/g,
+      (match, src, title) => {
+        const isYoutube = src.includes('youtube.com/embed/');
+        const isVimeo = src.includes('player.vimeo.com/video/');
+        
+        return `
+          <div class="relative my-8 mx-auto max-w-4xl rounded-xl shadow-2xl overflow-hidden"
+               style="padding-bottom: 56.25%">
+            ${
+              isYoutube || isVimeo
+                ? `<iframe 
+                    src="${src}" 
+                    class="absolute top-0 left-0 w-full h-full border-0 rounded-xl"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                    allowfullscreen
+                    title="${title}"
+                  ></iframe>`
+                : `<video 
+                    controls 
+                    class="w-full h-auto rounded-xl"
+                    title="${title}"
+                  >
+                    <source src="${src}" type="video/mp4">
+                    Your browser does not support the video tag.
+                  </video>`
+            }
+          </div>
+        `;
+      }
+    );
+  };
+
   if (loading) {
     return (
       <LoadingScreen />
@@ -669,7 +723,7 @@ export default function PostPage({ params }: Props) {
             <div className="bg-white/60 backdrop-blur-sm rounded-lg p-8 border border-gray-200">
               <div 
                 className="prose prose-lg max-w-none prose-headings:text-gray-900 prose-headings:font-bold prose-headings:tracking-tight prose-h1:text-4xl prose-h1:mt-8 prose-h1:mb-4 prose-h2:text-3xl prose-h2:mt-8 prose-h2:mb-4 prose-h2:border-b prose-h2:border-gray-200 prose-h2:pb-2 prose-h3:text-2xl prose-h3:mt-6 prose-h3:mb-3 prose-h4:text-xl prose-h4:mt-6 prose-h4:mb-3 prose-p:text-gray-700 prose-p:leading-relaxed prose-p:mb-4 prose-strong:text-gray-900 prose-strong:font-semibold prose-em:text-gray-700 prose-em:italic prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-a:font-medium prose-ul:text-gray-700 prose-ul:my-4 prose-ol:text-gray-700 prose-ol:my-4 prose-li:text-gray-700 prose-li:my-1 prose-li:leading-relaxed prose-blockquote:border-l-4 prose-blockquote:border-l-blue-500 prose-blockquote:bg-gradient-to-r prose-blockquote:from-blue-50 prose-blockquote:to-indigo-50 prose-blockquote:italic prose-blockquote:text-gray-700 prose-blockquote:pl-6 prose-blockquote:py-4 prose-blockquote:rounded-r-lg prose-blockquote:shadow-sm prose-blockquote:my-6 prose-img:rounded-xl prose-img:shadow-lg prose-img:border prose-img:border-gray-200 prose-img:my-8 prose-hr:border-gray-300 prose-hr:my-8 prose-hr:border-t-2 prose-table:border-collapse prose-table:border prose-table:border-gray-300 prose-table:my-6 prose-th:border prose-th:border-gray-300 prose-th:bg-gray-50 prose-th:p-3 prose-th:text-left prose-th:font-semibold prose-th:text-gray-900 prose-td:border prose-td:border-gray-300 prose-td:p-3 prose-td:text-gray-700 prose-code:text-emerald-700 prose-code:bg-gradient-to-r prose-code:from-emerald-50 prose-code:to-teal-50 prose-code:px-3 prose-code:py-1.5 prose-code:rounded-lg prose-code:text-sm prose-code:font-mono prose-code:font-semibold prose-code:border prose-code:border-emerald-200 prose-code:shadow-sm prose-code:before:content-[''] prose-code:after:content-[''] prose-pre:relative prose-pre:my-8"
-                dangerouslySetInnerHTML={{ __html: post.content }}
+                dangerouslySetInnerHTML={{ __html: processVideoContent(post.content) }}
               />
               
               <style jsx>{`
@@ -724,6 +778,35 @@ export default function PostPage({ params }: Props) {
                   font-size: 14px !important;
                   font-weight: 600 !important;
                   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1) !important;
+                }
+                
+                :global(.prose .video-wrapper) {
+                  position: relative;
+                  padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+                  height: 0;
+                  width: 100%;
+                  max-width: 800px;
+                  margin: 2rem auto;
+                  border-radius: 0.5rem;
+                  overflow: hidden;
+                  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+                  transform: translateZ(0); /* Force GPU layer */
+                  backface-visibility: hidden; /* Prevent flicker */
+                  will-change: transform; /* Optimize for animations */
+                  contain: content; /* Limit reflow scope */
+                }
+                
+                :global(.prose .video-wrapper iframe,
+                :global(.prose .video-wrapper video)) {
+                  position: absolute;
+                  top: 0;
+                  left: 0;
+                  width: 100%;
+                  height: 100%;
+                  border: none;
+                  border-radius: 0.5rem;
+                  transform: translateZ(0); /* GPU layer */
+                  pointer-events: auto; /* Ensure interactivity */
                 }
                 
                 :global(.prose blockquote) {
@@ -978,8 +1061,8 @@ export default function PostPage({ params }: Props) {
                 <CardContent className="space-y-4">
                   {loadingRelated ? (
                     <div className="space-y-3">
-                      {[1, 2, 3].map((i) => (
-                        <div key={i} className="border-b border-gray-200 last:border-0 pb-3 last:pb-0">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="border-b border-gray-200 last:border-0 pb-3 last:pb-0">
                           <div className="h-4 bg-gray-200 rounded animate-pulse mb-2"></div>
                           <div className="h-3 bg-gray-100 rounded w-2/3 animate-pulse"></div>
                         </div>
@@ -991,12 +1074,12 @@ export default function PostPage({ params }: Props) {
                         <Link href={`/posts/${relatedPost.slug}`}>
                           <h4 className="font-medium text-sm mb-1 hover:text-blue-600 cursor-pointer transition-colors duration-200 line-clamp-2">
                             {relatedPost.title}
-                          </h4>
+                      </h4>
                         </Link>
                         <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
                           <span>{relatedPost.reading_time} min read</span>
                           <span>{relatedPost.views_count} views</span>
-                        </div>
+                    </div>
                         {relatedPost.similarity_score > 0 && (
                           <div className="flex items-center space-x-1 text-xs">
                             <div className="flex flex-wrap gap-1">
@@ -1097,4 +1180,13 @@ export default function PostPage({ params }: Props) {
       />
     </div>
   )
+}
+
+// Simple debounce function
+function debounce(fn: Function, delay: number) {
+  let timeout: NodeJS.Timeout;
+  return function() {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => fn.apply(this, arguments), delay);
+  };
 } 

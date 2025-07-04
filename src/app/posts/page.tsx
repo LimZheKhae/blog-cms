@@ -224,7 +224,7 @@ export default function PostsPage() {
 
   const renderPostsList = (postsToRender: Post[], isLoading: boolean = false) => {
     if (isLoading) {
-      return (
+  return (
         <div className="text-center py-16">
           <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -237,39 +237,39 @@ export default function PostsPage() {
 
     if (postsToRender.length === 0) {
       return (
-        <div className="text-center py-16">
-          <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-            <Search className="h-8 w-8 text-gray-400" />
-          </div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">No posts found</h3>
+          <div className="text-center py-16">
+            <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+              <Search className="h-8 w-8 text-gray-400" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">No posts found</h3>
           <p className="text-gray-500">
             {activeTab === "saved" 
               ? "You haven't bookmarked any posts yet." 
               : "Try adjusting your search or filter criteria."
             }
           </p>
-        </div>
+          </div>
       )
     }
 
     return (
-      <div className={cn(
-        "gap-6",
-        viewMode === "grid" 
-          ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3" 
-          : "space-y-4"
-      )}>
+          <div className={cn(
+            "gap-6",
+            viewMode === "grid" 
+              ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3" 
+              : "space-y-4"
+          )}>
         {postsToRender.map((post) => (
-          <Card 
-            key={post.id} 
-            className={cn(
-              "group hover:shadow-xl transition-all duration-300 bg-white/80 backdrop-blur-sm border-gray-200 hover:border-gray-300",
-              viewMode === "list" ? "flex flex-row overflow-hidden" : "overflow-hidden"
-            )}
-          >
-            {viewMode === "grid" ? (
-              <>
-                <CardHeader className="pb-3">
+              <Card 
+                key={post.id} 
+                className={cn(
+                  "group hover:shadow-xl transition-all duration-300 bg-white/80 backdrop-blur-sm border-gray-200 hover:border-gray-300",
+                  viewMode === "list" ? "flex flex-row overflow-hidden" : "overflow-hidden"
+                )}
+              >
+                {viewMode === "grid" ? (
+                  <>
+                    <CardHeader className="pb-3">
                   <div className="flex items-center justify-between mb-2">
                     {post.category && (
                       <Badge variant="outline" className={getCategoryInfo(post.category).color}>
@@ -280,124 +280,124 @@ export default function PostsPage() {
                       {post.status === 'draft' ? '📝 Draft' : '✅ Published'}
                     </Badge>
                   </div>
-                  <CardTitle className="text-xl group-hover:text-blue-600 transition-colors">
-                    {post.title}
-                  </CardTitle>
-                  <CardDescription className="text-sm line-clamp-2">
-                    {post.excerpt}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-2">
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={post.author_avatar} />
-                        <AvatarFallback>{post.author_name?.charAt(0) || 'Anonymous'}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="text-sm font-medium">{post.author_name}</p>
-                        <p className="text-xs text-gray-500">
-                          {formatDate(post.created_at)}
-                        </p>
+                      <CardTitle className="text-xl group-hover:text-blue-600 transition-colors">
+                        {post.title}
+                      </CardTitle>
+                      <CardDescription className="text-sm line-clamp-2">
+                        {post.excerpt}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center space-x-2">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={post.author_avatar} />
+                            <AvatarFallback>{post.author_name?.charAt(0) || 'Anonymous'}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="text-sm font-medium">{post.author_name}</p>
+                            <p className="text-xs text-gray-500">
+                              {formatDate(post.created_at)}
+                            </p>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
 
-                  <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="flex items-center">
-                        <Eye className="h-3 w-3 mr-1" />
-                        {post.views_count}
+                      <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
+                        <div className="flex items-center space-x-3">
+                          <div className="flex items-center">
+                            <Eye className="h-3 w-3 mr-1" />
+                            {post.views_count}
+                          </div>
+                          <div className="flex items-center">
+                            <MessageSquare className="h-3 w-3 mr-1" />
+                            {post.comments_count}
+                          </div>
+                          <div className="flex items-center">
+                            <Heart className="h-3 w-3 mr-1 text-red-500 fill-red-500" />
+                            {post.likes_count || 0}
+                          </div>
+                        </div>
+                        <div className="flex items-center">
+                          <Clock className="h-3 w-3 mr-1" />
+                          {post.reading_time} min read
+                        </div>
                       </div>
-                      <div className="flex items-center">
-                        <MessageSquare className="h-3 w-3 mr-1" />
-                        {post.comments_count}
-                      </div>
-                      <div className="flex items-center">
-                        <Heart className="h-3 w-3 mr-1 text-red-500 fill-red-500" />
-                        {post.likes_count || 0}
-                      </div>
-                    </div>
-                    <div className="flex items-center">
-                      <Clock className="h-3 w-3 mr-1" />
-                      {post.reading_time} min read
-                    </div>
-                  </div>
 
-                  <Link href={`/posts/${post.slug}`}>
-                    <Button className="w-full group/btn">
-                      Read Article
-                      <ArrowRight className="h-4 w-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
-                    </Button>
-                  </Link>
-                </CardContent>
-              </>
-            ) : (
-              <>
-                <div className="flex-1 p-6">
-                  <div className="flex items-center justify-between mb-2">
+                      <Link href={`/posts/${post.slug}`}>
+                        <Button className="w-full group/btn">
+                          Read Article
+                          <ArrowRight className="h-4 w-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
+                        </Button>
+                      </Link>
+                    </CardContent>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex-1 p-6">
+                      <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       {post.category && (
                         <Badge variant="outline" className={getCategoryInfo(post.category).color}>
                           {getCategoryInfo(post.category).emoji} {post.category}
                         </Badge>
                       )}
-                      <Badge variant={getStatusBadgeVariant(post.status)}>
-                        {post.status === 'draft' ? '📝 Draft' : '✅ Published'}
-                      </Badge>
+                        <Badge variant={getStatusBadgeVariant(post.status)}>
+                          {post.status === 'draft' ? '📝 Draft' : '✅ Published'}
+                        </Badge>
                     </div>
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2 group-hover:text-blue-600 transition-colors">
-                    {post.title}
-                  </h3>
-                  <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-                    {post.excerpt}
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <Avatar className="h-6 w-6">
-                        <AvatarImage src={post.author_avatar} />
-                        <AvatarFallback>{post.author_name?.charAt(0) || 'Anonymous'}</AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm text-gray-600">{post.author_name}</span>
-                      <span className="text-sm text-gray-400">•</span>
-                      <span className="text-sm text-gray-500">{formatDate(post.created_at)}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-gray-500">
-                      <div className="flex items-center space-x-3">
-                        <div className="flex items-center">
-                          <Eye className="h-3 w-3 mr-1" />
-                          {post.views_count}
+                      </div>
+                      <h3 className="text-xl font-semibold mb-2 group-hover:text-blue-600 transition-colors">
+                        {post.title}
+                      </h3>
+                      <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                        {post.excerpt}
+                      </p>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <Avatar className="h-6 w-6">
+                            <AvatarImage src={post.author_avatar} />
+                            <AvatarFallback>{post.author_name?.charAt(0) || 'Anonymous'}</AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm text-gray-600">{post.author_name}</span>
+                          <span className="text-sm text-gray-400">•</span>
+                          <span className="text-sm text-gray-500">{formatDate(post.created_at)}</span>
                         </div>
-                        <div className="flex items-center">
-                          <MessageSquare className="h-3 w-3 mr-1" />
-                          {post.comments_count}
-                        </div>
-                        <div className="flex items-center">
-                          <Heart className="h-3 w-3 mr-1 text-red-500 fill-red-500" />
-                          {post.likes_count || 0}
+                        <div className="flex items-center justify-between text-xs text-gray-500">
+                          <div className="flex items-center space-x-3">
+                            <div className="flex items-center">
+                              <Eye className="h-3 w-3 mr-1" />
+                              {post.views_count}
+                            </div>
+                            <div className="flex items-center">
+                              <MessageSquare className="h-3 w-3 mr-1" />
+                              {post.comments_count}
+                            </div>
+                            <div className="flex items-center">
+                              <Heart className="h-3 w-3 mr-1 text-red-500 fill-red-500" />
+                              {post.likes_count || 0}
+                            </div>
+                          </div>
+                          <div className="flex items-center">
+                            <Clock className="h-3 w-3 mr-1" />
+                            {post.reading_time} min read
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center">
-                        <Clock className="h-3 w-3 mr-1" />
-                        {post.reading_time} min read
-                      </div>
                     </div>
-                  </div>
-                </div>
-                <div className="w-48 p-6 flex items-center">
-                  <Link href={`/posts/${post.slug}`} className="w-full">
-                    <Button className="w-full group/btn">
-                      Read
-                      <ArrowRight className="h-4 w-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
-                    </Button>
-                  </Link>
-                </div>
-              </>
-            )}
-          </Card>
-        ))}
-      </div>
+                    <div className="w-48 p-6 flex items-center">
+                      <Link href={`/posts/${post.slug}`} className="w-full">
+                        <Button className="w-full group/btn">
+                          Read
+                          <ArrowRight className="h-4 w-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
+                        </Button>
+                      </Link>
+                    </div>
+                  </>
+                )}
+              </Card>
+            ))}
+          </div>
     )
   }
 

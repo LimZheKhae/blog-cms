@@ -104,7 +104,7 @@ export default function MyDraftsPage() {
   const handleDeleteDraft = async (draftId: string, title: string) => {
     setDraftToDelete({ id: draftId, title })
     setShowDeleteDialog(true)
-  }
+    }
 
   const confirmDeleteDraft = async () => {
     if (!draftToDelete) return
